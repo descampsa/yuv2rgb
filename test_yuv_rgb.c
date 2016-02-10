@@ -152,7 +152,7 @@ int main(int argc, char **argv)
 		
 		clock_t t = clock();
 		for(int i=0;i<iteration_number; ++i)
-			ippiYUV420ToRGB_8u_P3C3R(pSrc, srcStep, pDst, dstStep, imgSize);
+			ippiYCbCr420ToRGB_8u_P3C3R(pSrc, srcStep, pDst, dstStep, imgSize);
 		t = clock()-t;
 		printf("Processing time (ipp) : %f sec\n", ((float)t)/CLOCKS_PER_SEC);
 		
@@ -226,7 +226,7 @@ int main(int argc, char **argv)
 		
 		clock_t t = clock();
 		for(int i=0;i<iteration_number; ++i)
-			ippiYUV420ToRGB_8u_P3C3R(pSrc, srcStep, pDst, dstStep, imgSize);
+			ippiYCbCr420ToRGB_8u_P3C3R(pSrc, srcStep, pDst, dstStep, imgSize);
 		t = clock()-t;
 		printf("Processing time (ipp aligned) : %f sec\n", ((float)t)/CLOCKS_PER_SEC);
 		
