@@ -46,6 +46,7 @@ int readRawYUV(const char *filename, uint32_t width, uint32_t height, uint8_t **
 		fputs ("Reading error", stderr);
 		return 3;
 	}
+	fclose(fp);
 	return 0;
 }
 
