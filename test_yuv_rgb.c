@@ -41,8 +41,12 @@ int readRawYUV(const char *filename, uint32_t width, uint32_t height, uint8_t **
 	fseek(fp, 0, SEEK_SET);
 	
 	*YUV = malloc(size);
-	fread(*YUV, 1, size, fp);
-	
+	size_t result = fread(*YUV, 1, size, fp);
+	if (result != size) {
+		fputs ("Reading error", stderr);
+		return 3;
+	}
+	fclose(fp);
 	return 0;
 }
 
