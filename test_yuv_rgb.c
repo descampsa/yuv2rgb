@@ -44,6 +44,7 @@ int readRawYUV(const char *filename, uint32_t width, uint32_t height, uint8_t **
 	size_t result = fread(*YUV, 1, size, fp);
 	if (result != size) {
 		fputs ("Reading error", stderr);
+		fclose(fp);
 		return 3;
 	}
 	fclose(fp);
