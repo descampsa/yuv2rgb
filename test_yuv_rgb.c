@@ -264,6 +264,20 @@ void yuv420_rgb24_ipp(uint32_t width, uint32_t height,
 	IppiSize imgSize = {.width=width, .height=height};
 	ippiYCbCr420ToRGB_8u_P3C3R(pSrc, srcStep, pDst, dstStep, imgSize);
 }
+
+void rgb24_yuv420_ipp(uint32_t width, uint32_t height, 
+	const uint8_t *rgb, uint32_t rgb_stride, 
+	uint8_t *y, uint8_t *u, uint8_t *v, uint32_t y_stride, uint32_t uv_stride, 
+	YCbCrType __attribute__ ((unused)) yuv_type)
+{
+	const Ipp8u* pSrc = rgb;
+	int srcStep = rgb_stride;
+	Ipp8u* pDst[3] = {y, u, v};
+	int dstStep[3] = {y_stride, uv_stride, uv_stride};
+	IppiSize imgSize = {.width=width, .height=height};
+	ippiRGBToYCbCr420_8u_C3P3R(pSrc, srcStep, pDst, dstStep, imgSize);
+}
+
 #endif
 
 int main(int argc, char **argv)
@@ -394,6 +408,8 @@ int main(int argc, char **argv)
 			out, "std", iteration_number, rgb24_yuv420_std);
 		test_rgb2yuv(width, height, RGB, width*3, Y, U, V, width, (width+1)/2, yuv_format, 
 			out, "ffmpeg_unaligned", iteration_number, rgb24_yuv420_ffmpeg);
+		test_rgb2yuv(width, height, RGB, width*3, Y, U, V, width, (width+1)/2, yuv_format, 
+			out, "ipp_unaligned", iteration_number, rgb24_yuv420_ipp);
 	}
 	
 	_mm_free(RGBa);
