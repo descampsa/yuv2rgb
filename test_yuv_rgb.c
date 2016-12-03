@@ -225,7 +225,8 @@ void test_rgb2yuv(uint32_t width, uint32_t height,
 
 // equivalent conversion functions for external libraries
 
-static struct SwsContext *swscale_ctx = NULL;
+static struct SwsContext *yuv2rgb_swscale_ctx = NULL;
+static struct SwsContext *rgb2yuv_swscale_ctx = NULL;
 
 void yuv420_rgb24_ffmpeg(uint32_t __attribute__ ((unused)) width, uint32_t height, 
 	const uint8_t *y, const uint8_t *u, const uint8_t *v, uint32_t y_stride, uint32_t uv_stride, 
@@ -235,8 +236,20 @@ void yuv420_rgb24_ffmpeg(uint32_t __attribute__ ((unused)) width, uint32_t heigh
 	const uint8_t *const inData[3] = {y, u, v};
 	int inLinesize[3] = {y_stride, uv_stride, uv_stride};
 	int outLinesize[1] = {rgb_stride};
-	sws_scale(swscale_ctx, inData, inLinesize, 0, height, &rgb, outLinesize);
+	sws_scale(yuv2rgb_swscale_ctx, inData, inLinesize, 0, height, &rgb, outLinesize);
 }
+
+void rgb24_yuv420_ffmpeg(uint32_t __attribute__ ((unused)) width, uint32_t height, 
+	const uint8_t *rgb, uint32_t rgb_stride, 
+	uint8_t *y, uint8_t *u, uint8_t *v, uint32_t y_stride, uint32_t uv_stride, 
+	YCbCrType __attribute__ ((unused)) yuv_type)
+{
+	int inLineSize[1] = {rgb_stride};
+	int outLineSize[3] = {y_stride, uv_stride, uv_stride};
+	uint8_t *const outData[3] = {y, u, v};
+	sws_scale(rgb2yuv_swscale_ctx, &rgb, inLineSize, 0, height, outData, outLineSize);
+}
+
 
 #if USE_IPP
 void yuv420_rgb24_ipp(uint32_t width, uint32_t height, 
@@ -305,7 +318,7 @@ int main(int argc, char **argv)
 			return 1;
 		}
 		
-		swscale_ctx = sws_getContext(width, height, AV_PIX_FMT_YUV420P, width, height, AV_PIX_FMT_RGB24, 0, 0, 0, 0);
+		yuv2rgb_swscale_ctx = sws_getContext(width, height, AV_PIX_FMT_YUV420P, width, height, AV_PIX_FMT_RGB24, 0, 0, 0, 0);
 		
 		RGB = malloc(3*width*height);
 		
@@ -366,7 +379,7 @@ int main(int argc, char **argv)
 			return 1;
 		}
 		
-		swscale_ctx = sws_getContext(width, height, AV_PIX_FMT_YUV420P, width, height, AV_PIX_FMT_RGB24, 0, 0, 0, 0);
+		rgb2yuv_swscale_ctx = sws_getContext(width, height, AV_PIX_FMT_RGB24, width, height, AV_PIX_FMT_YUV420P, 0, 0, 0, 0);
 		
 		YUV = malloc(width*height*3/2);
 		
@@ -379,6 +392,8 @@ int main(int argc, char **argv)
 		// test all versions
 		test_rgb2yuv(width, height, RGB, width*3, Y, U, V, width, (width+1)/2, yuv_format, 
 			out, "std", iteration_number, rgb24_yuv420_std);
+		test_rgb2yuv(width, height, RGB, width*3, Y, U, V, width, (width+1)/2, yuv_format, 
+			out, "ffmpeg_unaligned", iteration_number, rgb24_yuv420_ffmpeg);
 	}
 	
 	_mm_free(RGBa);
