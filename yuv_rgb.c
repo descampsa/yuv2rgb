@@ -168,22 +168,22 @@ void rgb24_yuv420_std(
 			y_tmp = param->matrix[0][0]*rgb_ptr1[0] + param->matrix[0][1]*rgb_ptr1[1] + param->matrix[0][2]*rgb_ptr1[2];
 			u_tmp = param->matrix[1][0]*rgb_ptr1[0] + param->matrix[1][1]*rgb_ptr1[1] + param->matrix[1][2]*rgb_ptr1[2];
 			v_tmp = param->matrix[2][0]*rgb_ptr1[0] + param->matrix[2][1]*rgb_ptr1[1] + param->matrix[2][2]*rgb_ptr1[2];
-			y_ptr1[0]=clampU8(y_tmp+(16<<PRECISION));
+			y_ptr1[0]=clampU8(y_tmp+((param->y_shift)<<PRECISION));
 			
 			y_tmp = param->matrix[0][0]*rgb_ptr1[3] + param->matrix[0][1]*rgb_ptr1[4] + param->matrix[0][2]*rgb_ptr1[5];
 			u_tmp += param->matrix[1][0]*rgb_ptr1[3] + param->matrix[1][1]*rgb_ptr1[4] + param->matrix[1][2]*rgb_ptr1[5];
 			v_tmp += param->matrix[2][0]*rgb_ptr1[3] + param->matrix[2][1]*rgb_ptr1[4] + param->matrix[2][2]*rgb_ptr1[5];
-			y_ptr1[1]=clampU8(y_tmp+(16<<PRECISION));
+			y_ptr1[1]=clampU8(y_tmp+((param->y_shift)<<PRECISION));
 			
 			y_tmp = param->matrix[0][0]*rgb_ptr2[0] + param->matrix[0][1]*rgb_ptr2[1] + param->matrix[0][2]*rgb_ptr2[2];
 			u_tmp += param->matrix[1][0]*rgb_ptr2[0] + param->matrix[1][1]*rgb_ptr2[1] + param->matrix[1][2]*rgb_ptr2[2];
 			v_tmp += param->matrix[2][0]*rgb_ptr2[0] + param->matrix[2][1]*rgb_ptr2[1] + param->matrix[2][2]*rgb_ptr2[2];
-			y_ptr2[0]=clampU8(y_tmp+(16<<PRECISION));
+			y_ptr2[0]=clampU8(y_tmp+((param->y_shift)<<PRECISION));
 			
 			y_tmp = param->matrix[0][0]*rgb_ptr2[3] + param->matrix[0][1]*rgb_ptr2[4] + param->matrix[0][2]*rgb_ptr2[5];
 			u_tmp += param->matrix[1][0]*rgb_ptr2[3] + param->matrix[1][1]*rgb_ptr2[4] + param->matrix[1][2]*rgb_ptr2[5];
 			v_tmp += param->matrix[2][0]*rgb_ptr2[3] + param->matrix[2][1]*rgb_ptr2[4] + param->matrix[2][2]*rgb_ptr2[5];
-			y_ptr2[1]=clampU8(y_tmp+(16<<PRECISION));
+			y_ptr2[1]=clampU8(y_tmp+((param->y_shift)<<PRECISION));
 			
 			u_ptr[0] = clampU8(u_tmp/4+(128<<PRECISION));
 			v_ptr[0] = clampU8(v_tmp/4+(128<<PRECISION));
