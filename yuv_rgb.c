@@ -141,6 +141,63 @@ void yuv420_rgb24_std(
 	}
 }
 
+void rgb24_yuv420_std(
+	uint32_t width, uint32_t height, 
+	const uint8_t *RGB, uint32_t RGB_stride, 
+	uint8_t *Y, uint8_t *U, uint8_t *V, uint32_t Y_stride, uint32_t UV_stride, 
+	YCbCrType yuv_type)
+{
+	const RGB2YUVParam *const param = &(RGB2YUV[yuv_type]);
+	
+	uint32_t x, y;
+	for(y=0; y<(height-1); y+=2)
+	{
+		const uint8_t *rgb_ptr1=RGB+y*RGB_stride,
+			*rgb_ptr2=RGB+(y+1)*RGB_stride;
+			
+		uint8_t *y_ptr1=Y+y*Y_stride,
+			*y_ptr2=Y+(y+1)*Y_stride,
+			*u_ptr=U+(y/2)*UV_stride,
+			*v_ptr=V+(y/2)*UV_stride;
+		
+		for(x=0; x<(width-1); x+=2)
+		{
+			// compute yuv for the four pixels, u and v values are summed
+			int32_t y_tmp, u_tmp, v_tmp;
+			
+			y_tmp = param->matrix[0][0]*rgb_ptr1[0] + param->matrix[0][1]*rgb_ptr1[1] + param->matrix[0][2]*rgb_ptr1[2];
+			u_tmp = param->matrix[1][0]*rgb_ptr1[0] + param->matrix[1][1]*rgb_ptr1[1] + param->matrix[1][2]*rgb_ptr1[2];
+			v_tmp = param->matrix[2][0]*rgb_ptr1[0] + param->matrix[2][1]*rgb_ptr1[1] + param->matrix[2][2]*rgb_ptr1[2];
+			y_ptr1[0]=clampU8(y_tmp+(16<<PRECISION));
+			
+			y_tmp = param->matrix[0][0]*rgb_ptr1[3] + param->matrix[0][1]*rgb_ptr1[4] + param->matrix[0][2]*rgb_ptr1[5];
+			u_tmp += param->matrix[1][0]*rgb_ptr1[3] + param->matrix[1][1]*rgb_ptr1[4] + param->matrix[1][2]*rgb_ptr1[5];
+			v_tmp += param->matrix[2][0]*rgb_ptr1[3] + param->matrix[2][1]*rgb_ptr1[4] + param->matrix[2][2]*rgb_ptr1[5];
+			y_ptr1[1]=clampU8(y_tmp+(16<<PRECISION));
+			
+			y_tmp = param->matrix[0][0]*rgb_ptr2[0] + param->matrix[0][1]*rgb_ptr2[1] + param->matrix[0][2]*rgb_ptr2[2];
+			u_tmp += param->matrix[1][0]*rgb_ptr2[0] + param->matrix[1][1]*rgb_ptr2[1] + param->matrix[1][2]*rgb_ptr2[2];
+			v_tmp += param->matrix[2][0]*rgb_ptr2[0] + param->matrix[2][1]*rgb_ptr2[1] + param->matrix[2][2]*rgb_ptr2[2];
+			y_ptr2[0]=clampU8(y_tmp+(16<<PRECISION));
+			
+			y_tmp = param->matrix[0][0]*rgb_ptr2[3] + param->matrix[0][1]*rgb_ptr2[4] + param->matrix[0][2]*rgb_ptr2[5];
+			u_tmp += param->matrix[1][0]*rgb_ptr2[3] + param->matrix[1][1]*rgb_ptr2[4] + param->matrix[1][2]*rgb_ptr2[5];
+			v_tmp += param->matrix[2][0]*rgb_ptr2[3] + param->matrix[2][1]*rgb_ptr2[4] + param->matrix[2][2]*rgb_ptr2[5];
+			y_ptr2[1]=clampU8(y_tmp+(16<<PRECISION));
+			
+			u_ptr[0] = clampU8(u_tmp/4+(128<<PRECISION));
+			v_ptr[0] = clampU8(v_tmp/4+(128<<PRECISION));
+			
+			rgb_ptr1 += 6;
+			rgb_ptr2 += 6;
+			y_ptr1 += 2;
+			y_ptr2 += 2;
+			u_ptr += 1;
+			v_ptr += 1;
+		}
+	}
+}
+
 #ifdef __SSE2__
 
 #define UV2RGB_16(U,V,R1,G1,B1,R2,G2,B2) \
