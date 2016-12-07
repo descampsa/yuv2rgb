@@ -27,13 +27,17 @@ int readRawYUV(const char *filename, uint32_t width, uint32_t height, uint8_t **
 {
 	FILE *fp = fopen(filename, "rb");
 	if(!fp)
+	{
+		perror("Error opening yuv image for read");
 		return 1;
+	}
 	
 	// check file size
 	fseek(fp, 0, SEEK_END);
 	uint32_t size = ftell(fp);
 	if(size!=(width*height + 2*((width+1)/2)*((height+1)/2)))
 	{
+		fprintf(stderr, "Wrong size of yuv image : %d bytes, expected %d bytes\n", size, (width*height + 2*((width+1)/2)*((height+1)/2)));
 		fclose(fp);
 		return 2;
 	}
@@ -42,7 +46,7 @@ int readRawYUV(const char *filename, uint32_t width, uint32_t height, uint8_t **
 	*YUV = malloc(size);
 	size_t result = fread(*YUV, 1, size, fp);
 	if (result != size) {
-		fputs ("Reading error", stderr);
+		perror("Error reading yuv image");
 		fclose(fp);
 		return 3;
 	}
@@ -55,7 +59,10 @@ int saveRawYUV(const char *filename, uint32_t width, uint32_t height, const uint
 {
 	FILE *fp = fopen(filename, "wb");
 	if(!fp)
+	{
+		perror("Error opening yuv image for write");
 		return 1;
+	}
 	
 	if(y_stride==width)
 	{
@@ -101,13 +108,17 @@ int readPPM(const char* filename, uint32_t *width, uint32_t *height, uint8_t **R
 {
 	FILE *fp = fopen(filename, "rb");
 	if(!fp)
+	{
+		perror("Error opening rgb image for read");
 		return 1;
-		
+	}
+	
 	char magic[3];
 	size_t result = fread(magic, 1, 2, fp);
 	magic[2]='\0';
 	if(result!=2 || strcmp(magic,"P6")!=0)
 	{
+		perror("Error reading rgb image header, or invalid format");
 		fclose(fp);
 		return 3;
 	}
@@ -116,6 +127,7 @@ int readPPM(const char* filename, uint32_t *width, uint32_t *height, uint8_t **R
 	result = fscanf(fp, " %u %u %u ", width, height, &max);
 	if(result!=3 || max>255)
 	{
+		perror("Error reading rgb image header, or invalid values");
 		fclose(fp);
 		return 3;
 	}
@@ -124,6 +136,7 @@ int readPPM(const char* filename, uint32_t *width, uint32_t *height, uint8_t **R
 	*RGB = malloc(size);
 	if(!*RGB)
 	{
+		perror("Error allocating rgb image memory");
 		fclose(fp);
 		return 2;
 	}
@@ -131,6 +144,7 @@ int readPPM(const char* filename, uint32_t *width, uint32_t *height, uint8_t **R
 	result = fread(*RGB, 1, size, fp);
 	if(result != size)
 	{
+		perror("Error reading rgb image");
 		fclose(fp);
 		return 3;
 	}
@@ -144,7 +158,10 @@ int savePPM(const char* filename, uint32_t width, uint32_t height, const uint8_t
 {
 	FILE *fp = fopen(filename, "wb");
 	if(!fp)
+	{
+		perror("Error opening rgb image for write");
 		return 1;
+	}
 	
 	fprintf(fp, "P6 %u %u 255\n", width, height);
 	if(stride==(3*width))
