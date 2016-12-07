@@ -103,8 +103,9 @@ int readPPM(const char* filename, uint32_t *width, uint32_t *height, uint8_t **R
 	if(!fp)
 		return 1;
 		
-	char magic[2];
+	char magic[3];
 	size_t result = fread(magic, 1, 2, fp);
+	magic[2]='\0';
 	if(result!=2 || strcmp(magic,"P6")!=0)
 	{
 		fclose(fp);
