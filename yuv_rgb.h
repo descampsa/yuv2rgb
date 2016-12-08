@@ -18,43 +18,42 @@
 
 #include <stdint.h>
 
-typedef enum
-{
-	YCBCR_JPEG,
-	YCBCR_601,
-	YCBCR_709
+typedef enum {
+    YCBCR_JPEG,
+    YCBCR_601,
+    YCBCR_709
 } YCbCrType;
 
 // yuv to rgb, standard c implementation
-void yuv420_rgb24_std(
-	uint32_t width, uint32_t height, 
-	const uint8_t *y, const uint8_t *u, const uint8_t *v, uint32_t y_stride, uint32_t uv_stride, 
-	uint8_t *rgb, uint32_t rgb_stride, 
-	YCbCrType yuv_type);
+void yuv420_rgb24_std(uint32_t width, uint32_t height, 
+                      const uint8_t *y, const uint8_t *u, 
+                      const uint8_t *v, uint32_t y_stride, 
+                      uint32_t uv_stride, uint8_t *rgb,
+                      uint32_t rgb_stride, YCbCrType yuv_type);
 
 // yuv to rgb, sse implementation
 // pointers must be 16 byte aligned, and strides must be divisable by 16
-void yuv420_rgb24_sse(
-	uint32_t width, uint32_t height, 
-	const uint8_t *y, const uint8_t *u, const uint8_t *v, uint32_t y_stride, uint32_t uv_stride, 
-	uint8_t *rgb, uint32_t rgb_stride, 
-	YCbCrType yuv_type);
+void yuv420_rgb24_sse(uint32_t width, uint32_t height, 
+                      const uint8_t *y, const uint8_t *u, 
+                      const uint8_t *v, uint32_t y_stride, 
+                      uint32_t uv_stride, uint8_t *rgb,
+                      uint32_t rgb_stride, YCbCrType yuv_type);
 
 // yuv to rgb, sse implementation
 // pointers do not need to be 16 byte aligned
-void yuv420_rgb24_sseu(
-	uint32_t width, uint32_t height, 
-	const uint8_t *y, const uint8_t *u, const uint8_t *v, uint32_t y_stride, uint32_t uv_stride, 
-	uint8_t *rgb, uint32_t rgb_stride, 
-	YCbCrType yuv_type);
+void yuv420_rgb24_sseu(uint32_t width, uint32_t height, 
+                       const uint8_t *y, const uint8_t *u, 
+                       const uint8_t *v, uint32_t y_stride, 
+                       uint32_t uv_stride, uint8_t *rgb, 
+                       uint32_t rgb_stride, YCbCrType yuv_type);
 
 
 
 // rgb to yuv, standard c implementation
-void rgb24_yuv420_std(
-	uint32_t width, uint32_t height, 
-	const uint8_t *rgb, uint32_t rgb_stride, 
-	uint8_t *y, uint8_t *u, uint8_t *v, uint32_t y_stride, uint32_t uv_stride, 
-	YCbCrType yuv_type);
+void rgb24_yuv420_std(uint32_t width, uint32_t height, 
+                      const uint8_t *rgb, uint32_t rgb_stride, 
+                      uint8_t *y, uint8_t *u, uint8_t *v,
+                      uint32_t y_stride, uint32_t uv_stride, 
+                      YCbCrType yuv_type);
 
 
