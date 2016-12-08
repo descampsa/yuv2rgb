@@ -119,11 +119,11 @@ int ffmpeg_sws_scale(AVFrame* src_frame, AVFrame* dst_frame) {
     sws_ctx = sws_getContext(src_frame->width, src_frame->height, src_frame->format, 
                              dst_frame->width, dst_frame->height, dst_frame->format,
                              SWS_BICUBIC, NULL, NULL, NULL);
-    sws_scale(sws_ctx, (const uint8_t *const *)src_frame->data, src_frame->linesize, 0, src_frame->height, 
-              dst_frame->data, dst_frame->linesize);
+    sws_scale(sws_ctx, (const uint8_t *const *)src_frame->data, src_frame->linesize,
+              0, src_frame->height, dst_frame->data, dst_frame->linesize);
 
     sws_freeContext(sws_ctx);
-    
+
     // av_freep(&src_data[0]);
     return 0;
 }
