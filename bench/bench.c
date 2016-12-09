@@ -147,16 +147,6 @@ int ffmpeg_image_to_avframe(const char* img_file_name, AVFrame* frame){
 		int ysize     = frame->width*frame->height;
 		int uvsize    = frame->width*frame->height/4;
 
-		// uint8_t* buf = (uint8_t *)av_malloc(yuv_size);
-		// ret = fread(buf, 1, yuv_size, file);
-		// if ( ret <= 0 ) {
-		//     printf("Could not read yuv image file.");
-		//     return 8;
-		// }
-		// frame->data[0] = buf;            // Y
-		// frame->data[1] = buf + ysize;    // U 
-		// frame->data[2] = buf + ysize*5/4;// V
-
 		fread(frame->data[0], 1, ysize,  file); // Y
 		fread(frame->data[1], 1, uvsize, file); // U
 		fread(frame->data[2], 1, uvsize, file); // V
