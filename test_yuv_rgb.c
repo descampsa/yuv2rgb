@@ -425,6 +425,8 @@ int main(int argc, char **argv)
 		test_rgb2yuv(width, height, RGB, width*3, Y, U, V, width, (width+1)/2, yuv_format, 
 			out, "std", iteration_number, rgb24_yuv420_std);
 		test_rgb2yuv(width, height, RGB, width*3, Y, U, V, width, (width+1)/2, yuv_format, 
+			out, "sse2_unaligned", iteration_number, rgb24_yuv420_sseu);
+		test_rgb2yuv(width, height, RGB, width*3, Y, U, V, width, (width+1)/2, yuv_format, 
 			out, "ffmpeg_unaligned", iteration_number, rgb24_yuv420_ffmpeg);
 #if USE_IPP
 		test_rgb2yuv(width, height, RGB, width*3, Y, U, V, width, (width+1)/2, yuv_format, 
