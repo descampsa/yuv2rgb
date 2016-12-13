@@ -13,7 +13,9 @@
 
 #include <x86intrin.h>
 
+#if USE_FFMPEG
 #include <libswscale/swscale.h>
+#endif
 #if USE_IPP
 #include <ippcc.h>
 #endif
@@ -243,6 +245,7 @@ void test_rgb2yuv(uint32_t width, uint32_t height,
 
 // equivalent conversion functions for external libraries
 
+#if USE_FFMPEG
 static struct SwsContext *yuv2rgb_swscale_ctx = NULL;
 static struct SwsContext *rgb2yuv_swscale_ctx = NULL;
 
@@ -267,7 +270,7 @@ void rgb24_yuv420_ffmpeg(uint32_t __attribute__ ((unused)) width, uint32_t heigh
 	uint8_t *const outData[3] = {y, u, v};
 	sws_scale(rgb2yuv_swscale_ctx, &rgb, inLineSize, 0, height, outData, outLineSize);
 }
-
+#endif
 
 #if USE_IPP
 void yuv420_rgb24_ipp(uint32_t width, uint32_t height, 
@@ -350,7 +353,9 @@ int main(int argc, char **argv)
 			return 1;
 		}
 		
+#if USE_FFMPEG
 		yuv2rgb_swscale_ctx = sws_getContext(width, height, AV_PIX_FMT_YUV420P, width, height, AV_PIX_FMT_RGB24, 0, 0, 0, 0);
+#endif
 		
 		RGB = malloc(3*width*height);
 		
@@ -384,16 +389,20 @@ int main(int argc, char **argv)
 			out, "std", iteration_number, yuv420_rgb24_std);
 		test_yuv2rgb(width, height, Y, U, V, width, (width+1)/2, RGB, width*3, yuv_format, 
 			out, "sse2_unaligned", iteration_number, yuv420_rgb24_sseu);
+#if USE_FFMPEG
 		test_yuv2rgb(width, height, Y, U, V, width, (width+1)/2, RGB, width*3, yuv_format, 
 			out, "ffmpeg_unaligned", iteration_number, yuv420_rgb24_ffmpeg);
+#endif
 #if USE_IPP
 		test_yuv2rgb(width, height, Y, U, V, width, (width+1)/2, RGB, width*3, yuv_format, 
 			out, "ipp_unaligned", iteration_number, yuv420_rgb24_ipp);
 #endif
 		test_yuv2rgb(width, height, Ya, Ua, Va, y_stride, uv_stride, RGBa, rgb_stride, yuv_format, 
 			out, "sse2_aligned", iteration_number, yuv420_rgb24_sse);
+#if USE_FFMPEG
 		test_yuv2rgb(width, height, Ya, Ua, Va, y_stride, uv_stride, RGBa, rgb_stride, yuv_format, 
 			out, "ffmpeg_aligned", iteration_number, yuv420_rgb24_ffmpeg);
+#endif
 #if USE_IPP
 		test_yuv2rgb(width, height, Ya, Ua, Va, y_stride, uv_stride, RGBa, rgb_stride, yuv_format, 
 			out, "ipp_aligned", iteration_number, yuv420_rgb24_ipp);
@@ -411,7 +420,9 @@ int main(int argc, char **argv)
 			return 1;
 		}
 		
+#if USE_FFMPEG
 		rgb2yuv_swscale_ctx = sws_getContext(width, height, AV_PIX_FMT_RGB24, width, height, AV_PIX_FMT_YUV420P, 0, 0, 0, 0);
+#endif
 		
 		YUV = malloc(width*height*3/2);
 		
@@ -426,8 +437,10 @@ int main(int argc, char **argv)
 			out, "std", iteration_number, rgb24_yuv420_std);
 		test_rgb2yuv(width, height, RGB, width*3, Y, U, V, width, (width+1)/2, yuv_format, 
 			out, "sse2_unaligned", iteration_number, rgb24_yuv420_sseu);
+#if USE_FFMPEG
 		test_rgb2yuv(width, height, RGB, width*3, Y, U, V, width, (width+1)/2, yuv_format, 
 			out, "ffmpeg_unaligned", iteration_number, rgb24_yuv420_ffmpeg);
+#endif
 #if USE_IPP
 		test_rgb2yuv(width, height, RGB, width*3, Y, U, V, width, (width+1)/2, yuv_format, 
 			out, "ipp_unaligned", iteration_number, rgb24_yuv420_ipp);
