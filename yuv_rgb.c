@@ -7,139 +7,132 @@
 
 #include <stdio.h>
 
-#define PRECISION 6
-#define PRECISION_FACTOR (1<<PRECISION)
+int16_t max(int16_t a, int16_t b)
+{
+	return a>b?a:b;
+}
+int16_t min(int16_t a, int16_t b)
+{
+	return a<b?a:b;
+}
 
+// Definitions
+//
+// E'R, E'G, E'B, E'Y, E'Cb and E'Cr refer to the analog signals
+// E'R, E'G, E'B and E'Y range is [0:1], while E'Cb and E'Cr range is [-0.5:0.5]
+// R, G, B, Y, Cb and Cr refer to the digitalized values
+// The digitalized values can use their full range ([0:255] for 8bit values),
+// or a subrange (typically [16:235] for Y and [16:240] for CbCr).
+// We assume here that RGB range is always [0:255], since it is the case for 
+// most digitalized images.
+// For 8bit values :
+// * Y = round((YMax-YMin)*E'Y + YMin)
+// * Cb = round((CbRange)*E'Cb + 128)
+// * Cr = round((CrRange)*E'Cr + 128)
+// Where *Min and *Max are the range of each channel
+//
+// In the analog domain , the RGB to YCbCr transformation is defined as:
+// * E'Y = Rf*E'R + Gf*E'G + Bf*E'B
+// Where Rf, Gf and Bf are constants defined in each standard, with 
+// Rf + Gf + Bf = 1 (necessary to ensure that E'Y range is [0:1])
+// * E'Cb = (E'B - E'Y) / CbNorm
+// * E'Cr = (E'R - E'Y) / CrNorm
+// Where CbNorm and CrNorm are constants, dependent of Rf, Gf, Bf, computed 
+// to normalize to a [-0.5:0.5] range : CbNorm=2*(1-Bf) and CrNorm=2*(1-Rf)
+//
+// Algorithms
+//
+// Most operations will be made in a fixed point format for speed, using 
+// N bits of precision. In next section the [x] convention is used for 
+// a fixed point rounded value, that is (int being the c type conversion)
+// * [x] = int(x*(2^N)+0.5)
+// Unless precised otherwise, we use N=7
+//.
+// For RGB to YCbCr conversion, we start by generating a pseudo Y value 
+// (noted Y') in fixed point format, using the full range for now.
+// * Y' = ([Rf]*R + [Gf]*G + [Bf]*B)>>N
+// We can then compute Cb and Cr by
+// * Cb = ((B - Y')*[CbRange/(255*CbNorm)])>>N + 128
+// * Cr = ((R - Y')*[CrRange/(255*CrNorm)])>>N + 128
+// And finally, we normalize Y to its digital range
+// * Y = (Y'*[(YMax-YMin)/255])>>N + YMin
+// 
+// For YCbCr to RGB conversion, we first compute the full range Y' value :
+// * Y' = ((Y-YMin)*[255/(YMax-YMin)])>>N
+// We can then compute B and R values by :
+// * B = ((Cb-128)*[(255*CbNorm)/CbRange])>>N + Y'
+// * R = ((Cr-128)*[(255*CrNorm)/CrRange])>>N + Y'
+// And finally, for G we know that:
+// * G = (Y' - (Rf*R + Bf*B)) / Gf
+// From above:
+// * G = (Y' - Rf * ((Cr-128)*(255*CrNorm)/CrRange + Y') - Bf * ((Cb-128)*(255*CbNorm)/CbRange + Y')) / Gf
+// Since 1-Rf-Bf=Gf, we can take Y' out of the division by Gf, and we get:
+// * G = Y' - (Cr-128)*Rf/Gf*(255*CrNorm)/CrRange - (Cb-128)*Bf/Gf*(255*CbNorm)/CbRange
+// That we can compute, with fixed point arithmetic, by
+// * G = Y' - ((Cr-128)*[Rf/Gf*(255*CrNorm)/CrRange] + (Cb-128)*[Bf/Gf*(255*CbNorm)/CbRange])>>N
+// 
+// Note : in ITU-T T.871(JPEG), Y=Y', so that part could be optimized out
+
+
+#define FIXED_POINT_VALUE(value, precision) ((int)(((value)*(1<<precision))+0.5))
+
+// see above for description
 typedef struct
 {
-	uint8_t y_shift;
-	int16_t matrix[3][3];
+	uint8_t r_factor;    // [Rf]
+	uint8_t g_factor;    // [Rg]
+	uint8_t b_factor;    // [Rb]
+	uint8_t cb_factor;   // [CbRange/(255*CbNorm)]
+	uint8_t cr_factor;   // [CrRange/(255*CrNorm)]
+	uint8_t y_factor;    // [(YMax-YMin)/255]
+	uint8_t y_offset;    // YMin
 } RGB2YUVParam;
-// |Y|   |y_shift|                        |matrix[0][0] matrix[0][1] matrix[0][2]|   |R|
-// |U| = |  128  | + 1/PRECISION_FACTOR * |matrix[1][0] matrix[1][1] matrix[1][2]| * |G|
-// |V|   |  128  |                        |matrix[2][0] matrix[2][1] matrix[2][2]|   |B|
 
 typedef struct
 {
-	uint8_t y_shift;
-	int16_t y_factor;
-	int16_t v_r_factor;
-	int16_t u_g_factor;
-	int16_t v_g_factor;
-	int16_t u_b_factor;
+	uint8_t cb_factor;   // [(255*CbNorm)/CbRange]
+	uint8_t cr_factor;   // [(255*CrNorm)/CrRange]
+	uint8_t g_cb_factor; // [Bf/Gf*(255*CbNorm)/CbRange]
+	uint8_t g_cr_factor; // [Rf/Gf*(255*CrNorm)/CrRange]
+	uint8_t y_factor;    // [(YMax-YMin)/255]
+	uint8_t y_offset;    // YMin
 } YUV2RGBParam;
-// |R|                        |y_factor      0       v_r_factor|   |Y-y_shift|
-// |G| = 1/PRECISION_FACTOR * |y_factor  u_g_factor  v_g_factor| * |  U-128  |
-// |B|                        |y_factor  u_b_factor      0     |   |  V-128  |
 
-#define V(value) ((value*PRECISION_FACTOR)+0.5)
+#define RGB2YUV_PARAM(Rf, Bf, YMin, YMax, CbCrRange) \
+{.r_factor=FIXED_POINT_VALUE(Rf, 8), \
+.g_factor=256-FIXED_POINT_VALUE(Rf, 8)-FIXED_POINT_VALUE(Bf, 8), \
+.b_factor=FIXED_POINT_VALUE(Bf, 8), \
+.cb_factor=FIXED_POINT_VALUE((CbCrRange/255.0)/(2.0*(1-Bf)), 8), \
+.cr_factor=FIXED_POINT_VALUE((CbCrRange/255.0)/(2.0*(1-Rf)), 8), \
+.y_factor=FIXED_POINT_VALUE((YMax-YMin)/255.0, 7), \
+.y_offset=YMin}
 
-// for ITU-T T.871, values can be found in section 7
-// for ITU-R BT.601-7 values are derived from equations in sections 2.5.1-2.5.3, assuming RGB is encoded using full range ([0-1]<->[0-255])
-// for ITU-R BT.709-6 values are derived from equations in sections 3.2-3.4, assuming RGB is encoded using full range ([0-1]<->[0-255])
-// all values are rounded to the fourth decimal
-
-static const YUV2RGBParam YUV2RGB[3] = {
-	// ITU-T T.871 (JPEG)
-	{.y_shift=0, .y_factor=V(1.0), .v_r_factor=V(1.402), .u_g_factor=-V(0.3441), .v_g_factor=-V(0.7141), .u_b_factor=V(1.772)},
-	// ITU-R BT.601-7
-	{.y_shift=16, .y_factor=V(1.1644), .v_r_factor=V(1.596), .u_g_factor=-V(0.3918), .v_g_factor=-V(0.813), .u_b_factor=V(2.0172)},
-	// ITU-R BT.709-6
-	{.y_shift=16, .y_factor=V(1.1644), .v_r_factor=V(1.7927), .u_g_factor=-V(0.2132), .v_g_factor=-V(0.5329), .u_b_factor=V(2.1124)}
-};
+#define YUV2RGB_PARAM(Rf, Bf, YMin, YMax, CbCrRange) \
+{.cb_factor=FIXED_POINT_VALUE(255.0*(2.0*(1-Bf))/CbCrRange, 6), \
+.cr_factor=FIXED_POINT_VALUE(255.0*(2.0*(1-Rf))/CbCrRange, 6), \
+.g_cb_factor=FIXED_POINT_VALUE(Bf/(1.0-Bf-Rf)*255.0*(2.0*(1-Bf))/CbCrRange, 7), \
+.g_cr_factor=FIXED_POINT_VALUE(Rf/(1.0-Bf-Rf)*255.0*(2.0*(1-Rf))/CbCrRange, 7), \
+.y_factor=FIXED_POINT_VALUE(255.0/(YMax-YMin), 7), \
+.y_offset=YMin}
 
 static const RGB2YUVParam RGB2YUV[3] = {
 	// ITU-T T.871 (JPEG)
-	{.y_shift=0, .matrix={{V(0.299), V(0.587), V(0.114)}, {-V(0.1687), -V(0.3313), V(0.5)}, {V(0.5), -V(0.4187), -V(0.0813)}}},
+	RGB2YUV_PARAM(0.299, 0.114, 0.0, 255.0, 255.0),
 	// ITU-R BT.601-7
-	{.y_shift=16, .matrix={{V(0.2568), V(0.5041), V(0.0979)}, {-V(0.1482), -V(0.291), V(0.4392)}, {V(0.4392), -V(0.3678), -V(0.0714)}}},
+	RGB2YUV_PARAM(0.299, 0.114, 16.0, 235.0, 224.0),
 	// ITU-R BT.709-6
-	{.y_shift=16, .matrix={{V(0.1826), V(0.6142), V(0.062)}, {-V(0.1006), -V(0.3386), V(0.4392)}, {V(0.4392), -V(0.3989), -V(0.0403)}}}
+	RGB2YUV_PARAM(0.2126, 0.0722, 16.0, 235.0, 224.0)
 };
 
-// divide by PRECISION_FACTOR and clamp to [0:255] interval
-// input must be in the [-128*PRECISION_FACTOR:384*PRECISION_FACTOR] range
-static inline uint8_t clampU8(int32_t v)
-{
-	static const uint8_t lut[512] = 
-	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-	0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,
-	47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,
-	91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,
-	126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,
-	159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,
-	192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,208,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223,224,
-	225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255,
-	255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
-	255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
-	255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
-	255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255
-	};
-	return lut[(v+128*PRECISION_FACTOR)>>PRECISION];
-}
+static const YUV2RGBParam YUV2RGB[3] = {
+	// ITU-T T.871 (JPEG)
+	YUV2RGB_PARAM(0.299, 0.114, 0.0, 255.0, 255.0),
+	// ITU-R BT.601-7
+	YUV2RGB_PARAM(0.299, 0.114, 16.0, 235.0, 224.0),
+	// ITU-R BT.709-6
+	YUV2RGB_PARAM(0.2126, 0.0722, 16.0, 235.0, 224.0)
+};
 
-void yuv420_rgb24_std(
-	uint32_t width, uint32_t height, 
-	const uint8_t *Y, const uint8_t *U, const uint8_t *V, uint32_t Y_stride, uint32_t UV_stride, 
-	uint8_t *RGB, uint32_t RGB_stride, 
-	YCbCrType yuv_type)
-{
-	const YUV2RGBParam *const param = &(YUV2RGB[yuv_type]);
-	
-	uint32_t x, y;
-	for(y=0; y<(height-1); y+=2)
-	{
-		const uint8_t *y_ptr1=Y+y*Y_stride,
-			*y_ptr2=Y+(y+1)*Y_stride,
-			*u_ptr=U+(y/2)*UV_stride,
-			*v_ptr=V+(y/2)*UV_stride;
-		
-		uint8_t *rgb_ptr1=RGB+y*RGB_stride,
-			*rgb_ptr2=RGB+(y+1)*RGB_stride;
-		
-		for(x=0; x<(width-1); x+=2)
-		{
-			// Compute U and V contributions, common to the four pixels
-			
-			int32_t u_tmp = ((*u_ptr)-128);
-			int32_t v_tmp = ((*v_ptr)-128);
-			
-			int32_t r_tmp = (v_tmp*param->v_r_factor);
-			int32_t g_tmp = (u_tmp*param->u_g_factor + v_tmp*param->v_g_factor);
-			int32_t b_tmp = (u_tmp*param->u_b_factor);
-			
-			// Compute the Y contribution for each pixel
-			
-			int32_t y_tmp = ((y_ptr1[0]-param->y_shift)*param->y_factor);
-			rgb_ptr1[0] = clampU8(y_tmp+r_tmp);
-			rgb_ptr1[1] = clampU8(y_tmp+g_tmp);
-			rgb_ptr1[2] = clampU8(y_tmp+b_tmp);
-			
-			y_tmp = ((y_ptr1[1]-param->y_shift)*param->y_factor);
-			rgb_ptr1[3] = clampU8(y_tmp+r_tmp);
-			rgb_ptr1[4] = clampU8(y_tmp+g_tmp);
-			rgb_ptr1[5] = clampU8(y_tmp+b_tmp);
-			
-			y_tmp = ((y_ptr2[0]-param->y_shift)*param->y_factor);
-			rgb_ptr2[0] = clampU8(y_tmp+r_tmp);
-			rgb_ptr2[1] = clampU8(y_tmp+g_tmp);
-			rgb_ptr2[2] = clampU8(y_tmp+b_tmp);
-			
-			y_tmp = ((y_ptr2[1]-param->y_shift)*param->y_factor);
-			rgb_ptr2[3] = clampU8(y_tmp+r_tmp);
-			rgb_ptr2[4] = clampU8(y_tmp+g_tmp);
-			rgb_ptr2[5] = clampU8(y_tmp+b_tmp);
-			
-			y_ptr1+=2;
-			y_ptr2+=2;
-			++u_ptr; 
-			++v_ptr;
-			rgb_ptr1+=6;
-			rgb_ptr2+=6;
-		}
-	}
-}
 
 void rgb24_yuv420_std(
 	uint32_t width, uint32_t height, 
@@ -154,7 +147,7 @@ void rgb24_yuv420_std(
 	{
 		const uint8_t *rgb_ptr1=RGB+y*RGB_stride,
 			*rgb_ptr2=RGB+(y+1)*RGB_stride;
-			
+		
 		uint8_t *y_ptr1=Y+y*Y_stride,
 			*y_ptr2=Y+(y+1)*Y_stride,
 			*u_ptr=U+(y/2)*UV_stride,
@@ -163,30 +156,31 @@ void rgb24_yuv420_std(
 		for(x=0; x<(width-1); x+=2)
 		{
 			// compute yuv for the four pixels, u and v values are summed
-			int32_t y_tmp, u_tmp, v_tmp;
+			uint8_t y_tmp;
+			uint16_t u_tmp, v_tmp;
 			
-			y_tmp = param->matrix[0][0]*rgb_ptr1[0] + param->matrix[0][1]*rgb_ptr1[1] + param->matrix[0][2]*rgb_ptr1[2];
-			u_tmp = param->matrix[1][0]*rgb_ptr1[0] + param->matrix[1][1]*rgb_ptr1[1] + param->matrix[1][2]*rgb_ptr1[2];
-			v_tmp = param->matrix[2][0]*rgb_ptr1[0] + param->matrix[2][1]*rgb_ptr1[1] + param->matrix[2][2]*rgb_ptr1[2];
-			y_ptr1[0]=clampU8(y_tmp+((param->y_shift)<<PRECISION));
+			y_tmp = (param->r_factor*rgb_ptr1[0] + param->g_factor*rgb_ptr1[1] + param->b_factor*rgb_ptr1[2])>>8;
+			u_tmp = (((rgb_ptr1[2]-y_tmp)*param->cb_factor)>>8) + 128;
+			v_tmp = (((rgb_ptr1[0]-y_tmp)*param->cr_factor)>>8) + 128;
+			y_ptr1[0]=((y_tmp*param->y_factor)>>7) + param->y_offset;
 			
-			y_tmp = param->matrix[0][0]*rgb_ptr1[3] + param->matrix[0][1]*rgb_ptr1[4] + param->matrix[0][2]*rgb_ptr1[5];
-			u_tmp += param->matrix[1][0]*rgb_ptr1[3] + param->matrix[1][1]*rgb_ptr1[4] + param->matrix[1][2]*rgb_ptr1[5];
-			v_tmp += param->matrix[2][0]*rgb_ptr1[3] + param->matrix[2][1]*rgb_ptr1[4] + param->matrix[2][2]*rgb_ptr1[5];
-			y_ptr1[1]=clampU8(y_tmp+((param->y_shift)<<PRECISION));
+			y_tmp = (param->r_factor*rgb_ptr1[3] + param->g_factor*rgb_ptr1[4] + param->b_factor*rgb_ptr1[5])>>8;
+			u_tmp += (((rgb_ptr1[5]-y_tmp)*param->cb_factor)>>8) + 128;
+			v_tmp += (((rgb_ptr1[3]-y_tmp)*param->cr_factor)>>8) + 128;
+			y_ptr1[1]=((y_tmp*param->y_factor)>>7) + param->y_offset;
+
+			y_tmp = (param->r_factor*rgb_ptr2[0] + param->g_factor*rgb_ptr2[1] + param->b_factor*rgb_ptr2[2])>>8;
+			u_tmp += (((rgb_ptr2[2]-y_tmp)*param->cb_factor)>>8) + 128;
+			v_tmp += (((rgb_ptr2[0]-y_tmp)*param->cr_factor)>>8) + 128;
+			y_ptr2[0]=((y_tmp*param->y_factor)>>7) + param->y_offset;
 			
-			y_tmp = param->matrix[0][0]*rgb_ptr2[0] + param->matrix[0][1]*rgb_ptr2[1] + param->matrix[0][2]*rgb_ptr2[2];
-			u_tmp += param->matrix[1][0]*rgb_ptr2[0] + param->matrix[1][1]*rgb_ptr2[1] + param->matrix[1][2]*rgb_ptr2[2];
-			v_tmp += param->matrix[2][0]*rgb_ptr2[0] + param->matrix[2][1]*rgb_ptr2[1] + param->matrix[2][2]*rgb_ptr2[2];
-			y_ptr2[0]=clampU8(y_tmp+((param->y_shift)<<PRECISION));
-			
-			y_tmp = param->matrix[0][0]*rgb_ptr2[3] + param->matrix[0][1]*rgb_ptr2[4] + param->matrix[0][2]*rgb_ptr2[5];
-			u_tmp += param->matrix[1][0]*rgb_ptr2[3] + param->matrix[1][1]*rgb_ptr2[4] + param->matrix[1][2]*rgb_ptr2[5];
-			v_tmp += param->matrix[2][0]*rgb_ptr2[3] + param->matrix[2][1]*rgb_ptr2[4] + param->matrix[2][2]*rgb_ptr2[5];
-			y_ptr2[1]=clampU8(y_tmp+((param->y_shift)<<PRECISION));
-			
-			u_ptr[0] = clampU8(u_tmp/4+(128<<PRECISION));
-			v_ptr[0] = clampU8(v_tmp/4+(128<<PRECISION));
+			y_tmp = (param->r_factor*rgb_ptr2[3] + param->g_factor*rgb_ptr2[4] + param->b_factor*rgb_ptr2[5])>>8;
+			u_tmp += (((rgb_ptr2[5]-y_tmp)*param->cb_factor)>>8) + 128;
+			v_tmp += (((rgb_ptr2[3]-y_tmp)*param->cr_factor)>>8) + 128;
+			y_ptr2[1]=((y_tmp*param->y_factor)>>7) + param->y_offset;
+
+			u_ptr[0] = u_tmp>>2;
+			v_ptr[0] = v_tmp>>2;
 			
 			rgb_ptr1 += 6;
 			rgb_ptr2 += 6;
@@ -198,6 +192,69 @@ void rgb24_yuv420_std(
 	}
 }
 
+
+void yuv420_rgb24_std(
+	uint32_t width, uint32_t height, 
+	const uint8_t *Y, const uint8_t *U, const uint8_t *V, uint32_t Y_stride, uint32_t UV_stride, 
+	uint8_t *RGB, uint32_t RGB_stride, 
+	YCbCrType yuv_type)
+{
+	const YUV2RGBParam *const param = &(YUV2RGB[yuv_type]);
+	uint32_t x, y;
+	for(y=0; y<(height-1); y+=2)
+	{
+		const uint8_t *y_ptr1=Y+y*Y_stride,
+			*y_ptr2=Y+(y+1)*Y_stride,
+			*u_ptr=U+(y/2)*UV_stride,
+			*v_ptr=V+(y/2)*UV_stride;
+		
+		uint8_t *rgb_ptr1=RGB+y*RGB_stride,
+			*rgb_ptr2=RGB+(y+1)*RGB_stride;
+		
+		for(x=0; x<(width-1); x+=2)
+		{
+			int16_t u_tmp, v_tmp;
+			u_tmp = u_ptr[0]-128;
+			v_tmp = v_ptr[0]-128;
+			
+			//compute Cb Cr color offsets, common to four pixels
+			int16_t b_cb_offset, r_cr_offset, g_cbcr_offset;
+			b_cb_offset = (param->cb_factor*u_tmp)>>6;
+			r_cr_offset = (param->cr_factor*v_tmp)>>6;
+			g_cbcr_offset = (param->g_cb_factor*u_tmp + param->g_cr_factor*v_tmp)>>7;
+			
+			int16_t y_tmp;
+			y_tmp = (param->y_factor*(y_ptr1[0]-param->y_offset))>>7;
+			rgb_ptr1[0] = max(0, min(255, y_tmp + r_cr_offset));
+			rgb_ptr1[1] = max(0, min(255, y_tmp - g_cbcr_offset));
+			rgb_ptr1[2] = max(0, min(255, y_tmp + b_cb_offset));
+			
+			y_tmp = (param->y_factor*(y_ptr1[1]-param->y_offset))>>7;
+			rgb_ptr1[3] = max(0, min(255, y_tmp + r_cr_offset));
+			rgb_ptr1[4] = max(0, min(255, y_tmp - g_cbcr_offset));
+			rgb_ptr1[5] = max(0, min(255, y_tmp + b_cb_offset));
+			
+			y_tmp = (param->y_factor*(y_ptr2[0]-param->y_offset))>>7;
+			rgb_ptr2[0] = max(0, min(255, y_tmp + r_cr_offset));
+			rgb_ptr2[1] = max(0, min(255, y_tmp - g_cbcr_offset));
+			rgb_ptr2[2] = max(0, min(255, y_tmp + b_cb_offset));
+			
+			y_tmp = (param->y_factor*(y_ptr2[1]-param->y_offset))>>7;
+			rgb_ptr2[3] = max(0, min(255, y_tmp + r_cr_offset));
+			rgb_ptr2[4] = max(0, min(255, y_tmp - g_cbcr_offset));
+			rgb_ptr2[5] = max(0, min(255, y_tmp + b_cb_offset));
+			
+			rgb_ptr1 += 6;
+			rgb_ptr2 += 6;
+			y_ptr1 += 2;
+			y_ptr2 += 2;
+			u_ptr += 1;
+			v_ptr += 1;
+		}
+	}
+}
+
+#ifdef NOTDEFINED
 #ifdef __SSE2__
 
 #define UV2RGB_16(U,V,R1,G1,B1,R2,G2,B2) \
@@ -624,4 +681,4 @@ void rgb24_yuv420_sseu(uint32_t width, uint32_t height,
 
 
 #endif //__SSE2__
-
+#endif

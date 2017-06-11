@@ -313,6 +313,8 @@ int main(int argc, char **argv)
 	const int iteration_number = 100;
 	printf("Time will be measured in each configuration for %d iterations...\n", iteration_number);
 	const YCbCrType yuv_format = YCBCR_601;
+	//const YCbCrType yuv_format = YCBCR_709;
+	//const YCbCrType yuv_format = YCBCR_JPEG;
 	
 	Mode mode;
 	if(strcmp(argv[1], "yuv2rgb")==0)
@@ -388,25 +390,25 @@ int main(int argc, char **argv)
 		// test all versions
 		test_yuv2rgb(width, height, Y, U, V, width, (width+1)/2, RGB, width*3, yuv_format, 
 			out, "std", iteration_number, yuv420_rgb24_std);
-		test_yuv2rgb(width, height, Y, U, V, width, (width+1)/2, RGB, width*3, yuv_format, 
-			out, "sse2_unaligned", iteration_number, yuv420_rgb24_sseu);
+//		test_yuv2rgb(width, height, Y, U, V, width, (width+1)/2, RGB, width*3, yuv_format, 
+//			out, "sse2_unaligned", iteration_number, yuv420_rgb24_sseu);
 #if USE_FFMPEG
 		test_yuv2rgb(width, height, Y, U, V, width, (width+1)/2, RGB, width*3, yuv_format, 
 			out, "ffmpeg_unaligned", iteration_number, yuv420_rgb24_ffmpeg);
 #endif
 #if USE_IPP
-		test_yuv2rgb(width, height, Y, U, V, width, (width+1)/2, RGB, width*3, yuv_format, 
-			out, "ipp_unaligned", iteration_number, yuv420_rgb24_ipp);
+//		test_yuv2rgb(width, height, Y, U, V, width, (width+1)/2, RGB, width*3, yuv_format, 
+//			out, "ipp_unaligned", iteration_number, yuv420_rgb24_ipp);
 #endif
-		test_yuv2rgb(width, height, Ya, Ua, Va, y_stride, uv_stride, RGBa, rgb_stride, yuv_format, 
-			out, "sse2_aligned", iteration_number, yuv420_rgb24_sse);
+//		test_yuv2rgb(width, height, Ya, Ua, Va, y_stride, uv_stride, RGBa, rgb_stride, yuv_format, 
+//			out, "sse2_aligned", iteration_number, yuv420_rgb24_sse);
 #if USE_FFMPEG
-		test_yuv2rgb(width, height, Ya, Ua, Va, y_stride, uv_stride, RGBa, rgb_stride, yuv_format, 
-			out, "ffmpeg_aligned", iteration_number, yuv420_rgb24_ffmpeg);
+//		test_yuv2rgb(width, height, Ya, Ua, Va, y_stride, uv_stride, RGBa, rgb_stride, yuv_format, 
+//			out, "ffmpeg_aligned", iteration_number, yuv420_rgb24_ffmpeg);
 #endif
 #if USE_IPP
-		test_yuv2rgb(width, height, Ya, Ua, Va, y_stride, uv_stride, RGBa, rgb_stride, yuv_format, 
-			out, "ipp_aligned", iteration_number, yuv420_rgb24_ipp);
+//		test_yuv2rgb(width, height, Ya, Ua, Va, y_stride, uv_stride, RGBa, rgb_stride, yuv_format, 
+//			out, "ipp_aligned", iteration_number, yuv420_rgb24_ipp);
 #endif
 	}
 	else if(mode==RGB2YUV)
@@ -452,25 +454,25 @@ int main(int argc, char **argv)
 		// test all versions
 		test_rgb2yuv(width, height, RGB, width*3, Y, U, V, width, (width+1)/2, yuv_format, 
 			out, "std", iteration_number, rgb24_yuv420_std);
-		test_rgb2yuv(width, height, RGB, width*3, Y, U, V, width, (width+1)/2, yuv_format, 
-			out, "sse2_unaligned", iteration_number, rgb24_yuv420_sseu);
+//		test_rgb2yuv(width, height, RGB, width*3, Y, U, V, width, (width+1)/2, yuv_format, 
+//			out, "sse2_unaligned", iteration_number, rgb24_yuv420_sseu);
 #if USE_FFMPEG
-		test_rgb2yuv(width, height, RGB, width*3, Y, U, V, width, (width+1)/2, yuv_format, 
-			out, "ffmpeg_unaligned", iteration_number, rgb24_yuv420_ffmpeg);
+//		test_rgb2yuv(width, height, RGB, width*3, Y, U, V, width, (width+1)/2, yuv_format, 
+//			out, "ffmpeg_unaligned", iteration_number, rgb24_yuv420_ffmpeg);
 #endif
 #if USE_IPP
-		test_rgb2yuv(width, height, RGB, width*3, Y, U, V, width, (width+1)/2, yuv_format, 
-			out, "ipp_unaligned", iteration_number, rgb24_yuv420_ipp);
+//		test_rgb2yuv(width, height, RGB, width*3, Y, U, V, width, (width+1)/2, yuv_format, 
+//			out, "ipp_unaligned", iteration_number, rgb24_yuv420_ipp);
 #endif
-		test_rgb2yuv(width, height, RGBa, rgb_stride, Ya, Ua, Va, y_stride, uv_stride, yuv_format, 
-			out, "sse2_aligned", iteration_number, rgb24_yuv420_sse);
+//		test_rgb2yuv(width, height, RGBa, rgb_stride, Ya, Ua, Va, y_stride, uv_stride, yuv_format, 
+//			out, "sse2_aligned", iteration_number, rgb24_yuv420_sse);
 #if USE_FFMPEG
-		test_rgb2yuv(width, height, RGBa, rgb_stride, Ya, Ua, Va, y_stride, uv_stride, yuv_format, 
-			out, "ffmpeg_aligned", iteration_number, rgb24_yuv420_ffmpeg);
+//		test_rgb2yuv(width, height, RGBa, rgb_stride, Ya, Ua, Va, y_stride, uv_stride, yuv_format, 
+//			out, "ffmpeg_aligned", iteration_number, rgb24_yuv420_ffmpeg);
 #endif
 #if USE_IPP
-		test_rgb2yuv(width, height, RGBa, rgb_stride, Ya, Ua, Va, y_stride, uv_stride, yuv_format, 
-			out, "ipp_aligned", iteration_number, rgb24_yuv420_ipp);
+//		test_rgb2yuv(width, height, RGBa, rgb_stride, Ya, Ua, Va, y_stride, uv_stride, yuv_format, 
+//			out, "ipp_aligned", iteration_number, rgb24_yuv420_ipp);
 #endif
 	}
 	
