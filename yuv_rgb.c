@@ -7,13 +7,9 @@
 
 #include <stdio.h>
 
-int16_t max(int16_t a, int16_t b)
+uint8_t clamp(int16_t value)
 {
-	return a>b?a:b;
-}
-int16_t min(int16_t a, int16_t b)
-{
-	return a<b?a:b;
+	return value<0 ? 0 : (value>255 ? 255 : value);
 }
 
 // Definitions
@@ -213,7 +209,7 @@ void yuv420_rgb24_std(
 		
 		for(x=0; x<(width-1); x+=2)
 		{
-			int16_t u_tmp, v_tmp;
+			int8_t u_tmp, v_tmp;
 			u_tmp = u_ptr[0]-128;
 			v_tmp = v_ptr[0]-128;
 			
@@ -225,24 +221,24 @@ void yuv420_rgb24_std(
 			
 			int16_t y_tmp;
 			y_tmp = (param->y_factor*(y_ptr1[0]-param->y_offset))>>7;
-			rgb_ptr1[0] = max(0, min(255, y_tmp + r_cr_offset));
-			rgb_ptr1[1] = max(0, min(255, y_tmp - g_cbcr_offset));
-			rgb_ptr1[2] = max(0, min(255, y_tmp + b_cb_offset));
+			rgb_ptr1[0] = clamp(y_tmp + r_cr_offset);
+			rgb_ptr1[1] = clamp(y_tmp - g_cbcr_offset);
+			rgb_ptr1[2] = clamp(y_tmp + b_cb_offset);
 			
 			y_tmp = (param->y_factor*(y_ptr1[1]-param->y_offset))>>7;
-			rgb_ptr1[3] = max(0, min(255, y_tmp + r_cr_offset));
-			rgb_ptr1[4] = max(0, min(255, y_tmp - g_cbcr_offset));
-			rgb_ptr1[5] = max(0, min(255, y_tmp + b_cb_offset));
+			rgb_ptr1[3] = clamp(y_tmp + r_cr_offset);
+			rgb_ptr1[4] = clamp(y_tmp - g_cbcr_offset);
+			rgb_ptr1[5] = clamp(y_tmp + b_cb_offset);
 			
 			y_tmp = (param->y_factor*(y_ptr2[0]-param->y_offset))>>7;
-			rgb_ptr2[0] = max(0, min(255, y_tmp + r_cr_offset));
-			rgb_ptr2[1] = max(0, min(255, y_tmp - g_cbcr_offset));
-			rgb_ptr2[2] = max(0, min(255, y_tmp + b_cb_offset));
+			rgb_ptr2[0] = clamp(y_tmp + r_cr_offset);
+			rgb_ptr2[1] = clamp(y_tmp - g_cbcr_offset);
+			rgb_ptr2[2] = clamp(y_tmp + b_cb_offset);
 			
 			y_tmp = (param->y_factor*(y_ptr2[1]-param->y_offset))>>7;
-			rgb_ptr2[3] = max(0, min(255, y_tmp + r_cr_offset));
-			rgb_ptr2[4] = max(0, min(255, y_tmp - g_cbcr_offset));
-			rgb_ptr2[5] = max(0, min(255, y_tmp + b_cb_offset));
+			rgb_ptr2[3] = clamp(y_tmp + r_cr_offset);
+			rgb_ptr2[4] = clamp(y_tmp - g_cbcr_offset);
+			rgb_ptr2[5] = clamp(y_tmp + b_cb_offset);
 			
 			rgb_ptr1 += 6;
 			rgb_ptr2 += 6;
