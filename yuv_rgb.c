@@ -153,30 +153,30 @@ void rgb24_yuv420_std(
 		{
 			// compute yuv for the four pixels, u and v values are summed
 			uint8_t y_tmp;
-			uint16_t u_tmp, v_tmp;
+			int16_t u_tmp, v_tmp;
 			
 			y_tmp = (param->r_factor*rgb_ptr1[0] + param->g_factor*rgb_ptr1[1] + param->b_factor*rgb_ptr1[2])>>8;
-			u_tmp = (((rgb_ptr1[2]-y_tmp)*param->cb_factor)>>8) + 128;
-			v_tmp = (((rgb_ptr1[0]-y_tmp)*param->cr_factor)>>8) + 128;
+			u_tmp = rgb_ptr1[2]-y_tmp;
+			v_tmp = rgb_ptr1[0]-y_tmp;
 			y_ptr1[0]=((y_tmp*param->y_factor)>>7) + param->y_offset;
 			
 			y_tmp = (param->r_factor*rgb_ptr1[3] + param->g_factor*rgb_ptr1[4] + param->b_factor*rgb_ptr1[5])>>8;
-			u_tmp += (((rgb_ptr1[5]-y_tmp)*param->cb_factor)>>8) + 128;
-			v_tmp += (((rgb_ptr1[3]-y_tmp)*param->cr_factor)>>8) + 128;
+			u_tmp += rgb_ptr1[5]-y_tmp;
+			v_tmp += rgb_ptr1[3]-y_tmp;
 			y_ptr1[1]=((y_tmp*param->y_factor)>>7) + param->y_offset;
 
 			y_tmp = (param->r_factor*rgb_ptr2[0] + param->g_factor*rgb_ptr2[1] + param->b_factor*rgb_ptr2[2])>>8;
-			u_tmp += (((rgb_ptr2[2]-y_tmp)*param->cb_factor)>>8) + 128;
-			v_tmp += (((rgb_ptr2[0]-y_tmp)*param->cr_factor)>>8) + 128;
+			u_tmp += rgb_ptr2[2]-y_tmp;
+			v_tmp += rgb_ptr2[0]-y_tmp;
 			y_ptr2[0]=((y_tmp*param->y_factor)>>7) + param->y_offset;
 			
 			y_tmp = (param->r_factor*rgb_ptr2[3] + param->g_factor*rgb_ptr2[4] + param->b_factor*rgb_ptr2[5])>>8;
-			u_tmp += (((rgb_ptr2[5]-y_tmp)*param->cb_factor)>>8) + 128;
-			v_tmp += (((rgb_ptr2[3]-y_tmp)*param->cr_factor)>>8) + 128;
+			u_tmp += rgb_ptr2[5]-y_tmp;
+			v_tmp += rgb_ptr2[3]-y_tmp;
 			y_ptr2[1]=((y_tmp*param->y_factor)>>7) + param->y_offset;
 
-			u_ptr[0] = u_tmp>>2;
-			v_ptr[0] = v_tmp>>2;
+			u_ptr[0] = (((u_tmp>>2)*param->cb_factor)>>8) + 128;
+			v_ptr[0] = (((v_tmp>>2)*param->cb_factor)>>8) + 128;
 			
 			rgb_ptr1 += 6;
 			rgb_ptr2 += 6;
