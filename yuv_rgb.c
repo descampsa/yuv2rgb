@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 
+
 uint8_t clamp(int16_t value)
 {
 	return value<0 ? 0 : (value>255 ? 255 : value);
@@ -496,15 +497,14 @@ void rgb24_yuv420_sseu(uint32_t width, uint32_t height,
 }
 #endif
 
-#ifdef NOTDEFINED
 #ifdef __SSE2__
 
 #define UV2RGB_16(U,V,R1,G1,B1,R2,G2,B2) \
-	r_tmp = _mm_mullo_epi16(V, _mm_set1_epi16(param->v_r_factor)); \
-	g_tmp = _mm_add_epi16( \
-		_mm_mullo_epi16(U, _mm_set1_epi16(param->u_g_factor)), \
-		_mm_mullo_epi16(V, _mm_set1_epi16(param->v_g_factor))); \
-	b_tmp = _mm_mullo_epi16(U, _mm_set1_epi16(param->u_b_factor)); \
+	r_tmp = _mm_srai_epi16(_mm_mullo_epi16(V, _mm_set1_epi16(param->cr_factor)), 6); \
+	g_tmp = _mm_srai_epi16(_mm_add_epi16( \
+		_mm_mullo_epi16(U, _mm_set1_epi16(param->g_cb_factor)), \
+		_mm_mullo_epi16(V, _mm_set1_epi16(param->g_cr_factor))), 7); \
+	b_tmp = _mm_srai_epi16(_mm_mullo_epi16(U, _mm_set1_epi16(param->cb_factor)), 6); \
 	R1 = _mm_unpacklo_epi16(r_tmp, r_tmp); \
 	G1 = _mm_unpacklo_epi16(g_tmp, g_tmp); \
 	B1 = _mm_unpacklo_epi16(b_tmp, b_tmp); \
@@ -513,15 +513,15 @@ void rgb24_yuv420_sseu(uint32_t width, uint32_t height,
 	B2 = _mm_unpackhi_epi16(b_tmp, b_tmp); \
 
 #define ADD_Y2RGB_16(Y1,Y2,R1,G1,B1,R2,G2,B2) \
-	Y1 = _mm_mullo_epi16(_mm_sub_epi16(Y1, _mm_set1_epi16(param->y_shift)), _mm_set1_epi16(param->y_factor)); \
-	Y2 = _mm_mullo_epi16(_mm_sub_epi16(Y2, _mm_set1_epi16(param->y_shift)), _mm_set1_epi16(param->y_factor)); \
+	Y1 = _mm_srai_epi16(_mm_mullo_epi16(Y1, _mm_set1_epi16(param->y_factor)), 7); \
+	Y2 = _mm_srai_epi16(_mm_mullo_epi16(Y2, _mm_set1_epi16(param->y_factor)), 7); \
 	\
-	R1 = _mm_srai_epi16(_mm_add_epi16(R1, Y1), PRECISION); \
-	G1 = _mm_srai_epi16(_mm_add_epi16(G1, Y1), PRECISION); \
-	B1 = _mm_srai_epi16(_mm_add_epi16(B1, Y1), PRECISION); \
-	R2 = _mm_srai_epi16(_mm_add_epi16(R2, Y2), PRECISION); \
-	G2 = _mm_srai_epi16(_mm_add_epi16(G2, Y2), PRECISION); \
-	B2 = _mm_srai_epi16(_mm_add_epi16(B2, Y2), PRECISION); \
+	R1 = _mm_add_epi16(Y1, R1); \
+	G1 = _mm_sub_epi16(Y1, G1); \
+	B1 = _mm_add_epi16(Y1, B1); \
+	R2 = _mm_add_epi16(Y2, R2); \
+	G2 = _mm_sub_epi16(Y2, G2); \
+	B2 = _mm_add_epi16(Y2, B2); \
 
 #define PACK_RGB24_32_STEP1(R1, R2, G1, G2, B1, B2, RGB1, RGB2, RGB3, RGB4, RGB5, RGB6) \
 RGB1 = _mm_packus_epi16(_mm_and_si128(R1,_mm_set1_epi16(0xFF)), _mm_and_si128(R2,_mm_set1_epi16(0xFF))); \
@@ -546,6 +546,7 @@ PACK_RGB24_32_STEP1(R1, R2, G1, G2, B1, B2, RGB1, RGB2, RGB3, RGB4, RGB5, RGB6) 
 PACK_RGB24_32_STEP2(R1, R2, G1, G2, B1, B2, RGB1, RGB2, RGB3, RGB4, RGB5, RGB6) \
 PACK_RGB24_32_STEP1(R1, R2, G1, G2, B1, B2, RGB1, RGB2, RGB3, RGB4, RGB5, RGB6) \
 
+
 #define YUV2RGB_32 \
 	__m128i r_tmp, g_tmp, b_tmp; \
 	__m128i r_16_1, g_16_1, b_16_1, r_16_2, g_16_2, b_16_2; \
@@ -554,18 +555,19 @@ PACK_RGB24_32_STEP1(R1, R2, G1, G2, B1, B2, RGB1, RGB2, RGB3, RGB4, RGB5, RGB6) 
 	\
 	__m128i u = LOAD_SI128((const __m128i*)(u_ptr)); \
 	__m128i v = LOAD_SI128((const __m128i*)(v_ptr)); \
+	u = _mm_add_epi8(u, _mm_set1_epi8(-128)); \
+	v = _mm_add_epi8(v, _mm_set1_epi8(-128)); \
 	\
 	/* process first 16 pixels of first line */\
-	__m128i u_16 = _mm_unpacklo_epi8(u, _mm_setzero_si128()); \
-	__m128i v_16 = _mm_unpacklo_epi8(v, _mm_setzero_si128()); \
-	u_16 = _mm_add_epi16(u_16, _mm_set1_epi16(-128)); \
-	v_16 = _mm_add_epi16(v_16, _mm_set1_epi16(-128)); \
+	__m128i u_16 = _mm_srai_epi16(_mm_unpacklo_epi8(u, u), 8); \
+	__m128i v_16 = _mm_srai_epi16(_mm_unpacklo_epi8(v, v), 8); \
 	\
-	UV2RGB_16(u_16, v_16, r_16_1, g_16_1, b_16_1, r_16_2, g_16_2, b_16_2) \
-	r_uv_16_1=r_16_1; g_uv_16_1=g_16_1; b_uv_16_1=b_16_1; \
-	r_uv_16_2=r_16_2; g_uv_16_2=g_16_2; b_uv_16_2=b_16_2; \
+	UV2RGB_16(u_16, v_16, r_uv_16_1, g_uv_16_1, b_uv_16_1, r_uv_16_2, g_uv_16_2, b_uv_16_2) \
+	r_16_1=r_uv_16_1; g_16_1=g_uv_16_1; b_16_1=b_uv_16_1; \
+	r_16_2=r_uv_16_2; g_16_2=g_uv_16_2; b_16_2=b_uv_16_2; \
 	\
 	__m128i y = LOAD_SI128((const __m128i*)(y_ptr1)); \
+	y = _mm_sub_epi8(y, _mm_set1_epi8(param->y_offset)); \
 	y_16_1 = _mm_unpacklo_epi8(y, _mm_setzero_si128()); \
 	y_16_2 = _mm_unpackhi_epi8(y, _mm_setzero_si128()); \
 	\
@@ -580,6 +582,7 @@ PACK_RGB24_32_STEP1(R1, R2, G1, G2, B1, B2, RGB1, RGB2, RGB3, RGB4, RGB5, RGB6) 
 	r_16_2=r_uv_16_2; g_16_2=g_uv_16_2; b_16_2=b_uv_16_2; \
 	\
 	y = LOAD_SI128((const __m128i*)(y_ptr2)); \
+	y = _mm_sub_epi8(y, _mm_set1_epi8(param->y_offset)); \
 	y_16_1 = _mm_unpacklo_epi8(y, _mm_setzero_si128()); \
 	y_16_2 = _mm_unpackhi_epi8(y, _mm_setzero_si128()); \
 	\
@@ -590,16 +593,15 @@ PACK_RGB24_32_STEP1(R1, R2, G1, G2, B1, B2, RGB1, RGB2, RGB3, RGB4, RGB5, RGB6) 
 	__m128i b_8_21 = _mm_packus_epi16(b_16_1, b_16_2); \
 	\
 	/* process last 16 pixels of first line */\
-	u_16 = _mm_unpackhi_epi8(u, _mm_setzero_si128()); \
-	v_16 = _mm_unpackhi_epi8(v, _mm_setzero_si128()); \
-	u_16 = _mm_add_epi16(u_16, _mm_set1_epi16(-128)); \
-	v_16 = _mm_add_epi16(v_16, _mm_set1_epi16(-128)); \
+	u_16 = _mm_srai_epi16(_mm_unpackhi_epi8(u, u), 8); \
+	v_16 = _mm_srai_epi16(_mm_unpackhi_epi8(v, v), 8); \
 	\
-	UV2RGB_16(u_16, v_16, r_16_1, g_16_1, b_16_1, r_16_2, g_16_2, b_16_2) \
-	r_uv_16_1=r_16_1; g_uv_16_1=g_16_1; b_uv_16_1=b_16_1; \
-	r_uv_16_2=r_16_2; g_uv_16_2=g_16_2; b_uv_16_2=b_16_2; \
+	UV2RGB_16(u_16, v_16, r_uv_16_1, g_uv_16_1, b_uv_16_1, r_uv_16_2, g_uv_16_2, b_uv_16_2) \
+	r_16_1=r_uv_16_1; g_16_1=g_uv_16_1; b_16_1=b_uv_16_1; \
+	r_16_2=r_uv_16_2; g_16_2=g_uv_16_2; b_16_2=b_uv_16_2; \
 	\
 	y = LOAD_SI128((const __m128i*)(y_ptr1+16)); \
+	y = _mm_sub_epi8(y, _mm_set1_epi8(param->y_offset)); \
 	y_16_1 = _mm_unpacklo_epi8(y, _mm_setzero_si128()); \
 	y_16_2 = _mm_unpackhi_epi8(y, _mm_setzero_si128()); \
 	\
@@ -614,6 +616,7 @@ PACK_RGB24_32_STEP1(R1, R2, G1, G2, B1, B2, RGB1, RGB2, RGB3, RGB4, RGB5, RGB6) 
 	r_16_2=r_uv_16_2; g_16_2=g_uv_16_2; b_16_2=b_uv_16_2; \
 	\
 	y = LOAD_SI128((const __m128i*)(y_ptr2+16)); \
+	y = _mm_sub_epi8(y, _mm_set1_epi8(param->y_offset)); \
 	y_16_1 = _mm_unpacklo_epi8(y, _mm_setzero_si128()); \
 	y_16_2 = _mm_unpackhi_epi8(y, _mm_setzero_si128()); \
 	\
@@ -716,78 +719,5 @@ void yuv420_rgb24_sseu(
 	#undef SAVE_SI128
 }
 
-void rgb24_yuv420_sse(uint32_t width, uint32_t height, 
-	const uint8_t *RGB, uint32_t RGB_stride, 
-	uint8_t *Y, uint8_t *U, uint8_t *V, uint32_t Y_stride, uint32_t UV_stride, 
-	YCbCrType yuv_type)
-{
-	#define LOAD_SI128 _mm_load_si128
-	#define SAVE_SI128 _mm_stream_si128
-	const RGB2YUVParam *const param = &(RGB2YUV[yuv_type]);
-	
-	uint32_t x, y;
-	for(y=0; y<(height-1); y+=2)
-	{
-		const uint8_t *rgb_ptr1=RGB+y*RGB_stride,
-			*rgb_ptr2=RGB+(y+1)*RGB_stride;
-		
-		uint8_t *y_ptr1=Y+y*Y_stride,
-			*y_ptr2=Y+(y+1)*Y_stride,
-			*u_ptr=U+(y/2)*UV_stride,
-			*v_ptr=V+(y/2)*UV_stride;
-		
-		for(x=0; x<(width-31); x+=32)
-		{
-			RGB2YUV_32
-			
-			rgb_ptr1+=96;
-			rgb_ptr2+=96;
-			y_ptr1+=32;
-			y_ptr2+=32;
-			u_ptr+=16; 
-			v_ptr+=16;
-		}
-	}
-	#undef LOAD_SI128
-	#undef SAVE_SI128
-}
-
-void rgb24_yuv420_sseu(uint32_t width, uint32_t height, 
-	const uint8_t *RGB, uint32_t RGB_stride, 
-	uint8_t *Y, uint8_t *U, uint8_t *V, uint32_t Y_stride, uint32_t UV_stride, 
-	YCbCrType yuv_type)
-{
-	#define LOAD_SI128 _mm_loadu_si128
-	#define SAVE_SI128 _mm_storeu_si128
-	const RGB2YUVParam *const param = &(RGB2YUV[yuv_type]);
-	
-	uint32_t x, y;
-	for(y=0; y<(height-1); y+=2)
-	{
-		const uint8_t *rgb_ptr1=RGB+y*RGB_stride,
-			*rgb_ptr2=RGB+(y+1)*RGB_stride;
-		
-		uint8_t *y_ptr1=Y+y*Y_stride,
-			*y_ptr2=Y+(y+1)*Y_stride,
-			*u_ptr=U+(y/2)*UV_stride,
-			*v_ptr=V+(y/2)*UV_stride;
-		
-		for(x=0; x<(width-31); x+=32)
-		{
-			RGB2YUV_32
-			
-			rgb_ptr1+=96;
-			rgb_ptr2+=96;
-			y_ptr1+=32;
-			y_ptr2+=32;
-			u_ptr+=16; 
-			v_ptr+=16;
-		}
-	}
-	#undef LOAD_SI128
-	#undef SAVE_SI128
-}
-
 
 #endif //__SSE2__
-#endif
