@@ -43,7 +43,8 @@ uint8_t clamp(int16_t value)
 // N bits of precision. In next section the [x] convention is used for 
 // a fixed point rounded value, that is (int being the c type conversion)
 // * [x] = int(x*(2^N)+0.5)
-// Unless precised otherwise, we use N=7
+// N can be different for each factor, we simply use the highest value
+// that will not overflow in 16 bits intermediate variables.
 //.
 // For RGB to YCbCr conversion, we start by generating a pseudo Y value 
 // (noted Y') in fixed point format, using the full range for now.
