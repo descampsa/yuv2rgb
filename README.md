@@ -40,23 +40,23 @@ Similarly, for RGB24 to YUV420 conversion:
 On my computer, the test program on a 4K image give the following for yuv2rgb:
 
     Time will be measured in each configuration for 100 iterations...
-    Processing time (std) : 2.082658 sec
-    Processing time (sse2_unaligned) : 0.731148 sec
-    Processing time (ffmpeg_unaligned) : 1.236829 sec
-    Processing time (ipp_unaligned) : 0.659277 sec
-    Processing time (sse2_aligned) : 0.607297 sec
-    Processing time (ffmpeg_aligned) : 1.241377 sec
-    Processing time (ipp_aligned) : 0.666605 sec
+    Processing time (std) : 2.630193 sec
+    Processing time (sse2_unaligned) : 0.704394 sec
+    Processing time (ffmpeg_unaligned) : 1.221432 sec
+    Processing time (ipp_unaligned) : 0.636274 sec
+    Processing time (sse2_aligned) : 0.606648 sec
+    Processing time (ffmpeg_aligned) : 1.227100 sec
+    Processing time (ipp_aligned) : 0.636951 sec
 
 And for rgb2yuv:
 
     Time will be measured in each configuration for 100 iterations...
-    Processing time (std) : 3.877032 sec
-    Processing time (sse2_unaligned) : 0.865142 sec
-    Processing time (ffmpeg_unaligned) : 3.438381 sec
-    Processing time (ipp_unaligned) : 0.604243 sec
-    Processing time (sse2_aligned) : 0.830558 sec
-    Processing time (ffmpeg_aligned) : 3.441794 sec
-    Processing time (ipp_aligned) : 0.608490 sec
+    Processing time (std) : 2.588675 sec
+    Processing time (sse2_unaligned) : 0.676625 sec
+    Processing time (ffmpeg_unaligned) : 3.385816 sec
+    Processing time (ipp_unaligned) : 0.593890 sec
+    Processing time (sse2_aligned) : 0.640630 sec
+    Processing time (ffmpeg_aligned) : 3.397952 sec
+    Processing time (ipp_aligned) : 0.579043 sec
 
 configuration : gcc 4.9.2, swscale 3.0.0, IPP 9.0.1, intel i7-5500U
