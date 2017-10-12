@@ -25,6 +25,10 @@ typedef enum
 	YCBCR_709
 } YCbCrType;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // yuv to rgb, standard c implementation
 void yuv420_rgb24_std(
 	uint32_t width, uint32_t height, 
@@ -73,3 +77,6 @@ void rgb24_yuv420_sseu(
 	uint8_t *y, uint8_t *u, uint8_t *v, uint32_t y_stride, uint32_t uv_stride, 
 	YCbCrType yuv_type);
 
+#ifdef __cplusplus
+}
+#endif
