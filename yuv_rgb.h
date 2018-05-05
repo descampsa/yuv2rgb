@@ -36,6 +36,20 @@ void yuv420_rgb24_std(
 	uint8_t *rgb, uint32_t rgb_stride, 
 	YCbCrType yuv_type);
 
+// yuv to rgb, yuv in nv12 semi planar format
+void nv12_rgb24_std(
+	uint32_t width, uint32_t height,
+	const uint8_t *y, const uint8_t *uv, uint32_t y_stride, uint32_t uv_stride,
+	uint8_t *rgb, uint32_t rgb_stride,
+	YCbCrType yuv_type);
+
+// yuv to rgb, yuv in nv12 semi planar format
+void nv21_rgb24_std(
+	uint32_t width, uint32_t height,
+	const uint8_t *y, const uint8_t *uv, uint32_t y_stride, uint32_t uv_stride,
+	uint8_t *rgb, uint32_t rgb_stride,
+	YCbCrType yuv_type);
+
 // yuv to rgb, sse implementation
 // pointers must be 16 byte aligned, and strides must be divisable by 16
 void yuv420_rgb24_sse(
@@ -51,6 +65,39 @@ void yuv420_rgb24_sseu(
 	const uint8_t *y, const uint8_t *u, const uint8_t *v, uint32_t y_stride, uint32_t uv_stride, 
 	uint8_t *rgb, uint32_t rgb_stride, 
 	YCbCrType yuv_type);
+
+// yuv nv12 to rgb, sse implementation
+// pointers must be 16 byte aligned, and strides must be divisable by 16
+void nv12_rgb24_sse(
+	uint32_t width, uint32_t height, 
+	const uint8_t *y, const uint8_t *uv, uint32_t y_stride, uint32_t uv_stride, 
+	uint8_t *rgb, uint32_t rgb_stride, 
+	YCbCrType yuv_type);
+
+// yuv nv12 to rgb, sse implementation
+// pointers do not need to be 16 byte aligned
+void nv12_rgb24_sseu(
+	uint32_t width, uint32_t height, 
+	const uint8_t *y, const uint8_t *uv, uint32_t y_stride, uint32_t uv_stride, 
+	uint8_t *rgb, uint32_t rgb_stride, 
+	YCbCrType yuv_type);
+
+// yuv nv21 to rgb, sse implementation
+// pointers must be 16 byte aligned, and strides must be divisable by 16
+void nv21_rgb24_sse(
+	uint32_t width, uint32_t height, 
+	const uint8_t *y, const uint8_t *uv, uint32_t y_stride, uint32_t uv_stride, 
+	uint8_t *rgb, uint32_t rgb_stride, 
+	YCbCrType yuv_type);
+
+// yuv nv21 to rgb, sse implementation
+// pointers do not need to be 16 byte aligned
+void nv21_rgb24_sseu(
+	uint32_t width, uint32_t height, 
+	const uint8_t *y, const uint8_t *uv, uint32_t y_stride, uint32_t uv_stride, 
+	uint8_t *rgb, uint32_t rgb_stride, 
+	YCbCrType yuv_type);
+
 
 
 

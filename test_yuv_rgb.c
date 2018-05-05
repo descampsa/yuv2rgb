@@ -185,12 +185,20 @@ int savePPM(const char* filename, uint32_t width, uint32_t height, const uint8_t
 typedef enum
 {
 	RGB2YUV,
-	YUV2RGB
+	YUV2RGB,
+	YUV2RGB_NV12,
+	YUV2RGB_NV21
 } Mode;
 
 typedef void (*yuv2rgb_ptr)(
 	uint32_t width, uint32_t height, 
 	const uint8_t *y, const uint8_t *u, const uint8_t *v, uint32_t y_stride, uint32_t uv_stride, 
+	uint8_t *rgb, uint32_t rgb_stride, 
+	YCbCrType yuv_type);
+
+typedef void (*yuvsp2rgb_ptr)(
+	uint32_t width, uint32_t height, 
+	const uint8_t *y, const uint8_t *uv, uint32_t y_stride, uint32_t uv_stride, 
 	uint8_t *rgb, uint32_t rgb_stride, 
 	YCbCrType yuv_type);
 
@@ -221,6 +229,28 @@ void test_yuv2rgb(uint32_t width, uint32_t height,
 	savePPM(out_filename, width, height, rgb, rgb_stride);
 	free(out_filename);
 }
+
+// call yuv2rgb semi planar conversion function, time it and save result
+void test_yuvsp2rgb(uint32_t width, uint32_t height, 
+	const uint8_t *y, const uint8_t *uv, uint32_t y_stride, uint32_t uv_stride,
+	uint8_t *rgb, uint32_t rgb_stride, YCbCrType yuv_type,
+	const char *file, const char *name, uint32_t iteration_number, const yuvsp2rgb_ptr yuv2rgb_fun)
+{
+	clock_t t = clock();
+	for(uint32_t i=0;i<iteration_number; ++i)
+		yuv2rgb_fun(width, height, y, uv, y_stride, uv_stride, rgb, rgb_stride, yuv_type);
+	t = clock()-t;
+	printf("Processing time (%s) : %f sec\n", name, ((float)t)/CLOCKS_PER_SEC);
+	
+	char *out_filename = malloc(strlen(file)+strlen(name)+6);
+	strcpy(out_filename, file);
+	strcat(out_filename, "_");
+	strcat(out_filename, name);
+	strcat(out_filename, ".ppm");
+	savePPM(out_filename, width, height, rgb, rgb_stride);
+	free(out_filename);
+}
+
 
 // call rgb2yuv conversion function, time it and save result
 void test_rgb2yuv(uint32_t width, uint32_t height, 
@@ -306,6 +336,8 @@ int main(int argc, char **argv)
 	if(argc<4)
 	{
 		printf("Usage : test yuv2rgb <yuv image file> <image width> <image height> <output template filename>\n");
+		printf("Or    : test yuv2rgb_nv12 <yuv image file> <image width> <image height> <output template filename>\n");
+		printf("Or    : test yuv2rgb_nv21 <yuv image file> <image width> <image height> <output template filename>\n");
 		printf("Or    : test rgb2yuv <rgb24 binary ppm image file> <output template filename>\n");
 		return 1;
 	}
@@ -326,6 +358,14 @@ int main(int argc, char **argv)
 			return 1;
 		}
 	}
+	else if(strcmp(argv[1], "yuv2rgb_nv12")==0)
+	{
+		mode=YUV2RGB_NV12;
+	}
+	else if(strcmp(argv[1], "yuv2rgb_nv21")==0)
+	{
+		mode=YUV2RGB_NV21;
+	}
 	else if(strcmp(argv[1], "rgb2yuv")==0)
 	{
 		mode=RGB2YUV;
@@ -341,7 +381,7 @@ int main(int argc, char **argv)
 	const char *out;
 	uint8_t *YUV=NULL, *RGB=NULL, *Y=NULL, *U=NULL, *V=NULL, *RGBa=NULL, *YUVa=NULL, *Ya=NULL, *Ua=NULL, *Va=NULL;
 	
-	if(mode==YUV2RGB)
+	if(mode==YUV2RGB || mode==YUV2RGB_NV12 ||  mode==YUV2RGB_NV21)
 	{
 		//parse argument line
 		width = atoi(argv[3]);
@@ -366,9 +406,9 @@ int main(int argc, char **argv)
 		V = YUV+width*height+((width+1)/2)*((height+1)/2);
 		
 		// allocate aligned data
-		const size_t y_stride = width + (16-width%16)%16,
-		uv_stride = (width+1)/2 + (16-((width+1)/2)%16)%16,
-		rgb_stride = width*3 +(16-(3*width)%16)%16;
+		const size_t y_stride = width + (16-width%16)%16;
+		const size_t uv_stride = (mode==YUV2RGB) ? (width+1)/2 + (16-((width+1)/2)%16)%16 : y_stride;
+		const size_t rgb_stride = width*3 +(16-(3*width)%16)%16;
 	
 		const size_t y_size = y_stride*height, uv_size = uv_stride*((height+1)/2);
 		YUVa = _mm_malloc(y_size+2*uv_size, 16);
@@ -380,36 +420,64 @@ int main(int argc, char **argv)
 			memcpy(Ya+i*y_stride, Y+i*width, width);
 			if((i%2)==0)
 			{
-				memcpy(Ua+(i/2)*uv_stride, U+(i/2)*((width+1)/2), (width+1)/2);
-				memcpy(Va+(i/2)*uv_stride, V+(i/2)*((width+1)/2), (width+1)/2);
+				if(mode==YUV2RGB)
+				{
+					memcpy(Ua+(i/2)*uv_stride, U+(i/2)*((width+1)/2), (width+1)/2);
+					memcpy(Va+(i/2)*uv_stride, V+(i/2)*((width+1)/2), (width+1)/2);
+				}
+				else
+				{
+					memcpy(Ua+(i/2)*uv_stride, U+(i/2)*width, width);
+				}
 			}
 		}
 		
 		RGBa = _mm_malloc(rgb_stride*height, 16);
 		
 		// test all versions
-		test_yuv2rgb(width, height, Y, U, V, width, (width+1)/2, RGB, width*3, yuv_format, 
-			out, "std", iteration_number, yuv420_rgb24_std);
-		test_yuv2rgb(width, height, Y, U, V, width, (width+1)/2, RGB, width*3, yuv_format, 
-			out, "sse2_unaligned", iteration_number, yuv420_rgb24_sseu);
+		if(mode==YUV2RGB)
+		{
+			test_yuv2rgb(width, height, Y, U, V, width, (width+1)/2, RGB, width*3, yuv_format, 
+				out, "std", iteration_number, yuv420_rgb24_std);
+			test_yuv2rgb(width, height, Y, U, V, width, (width+1)/2, RGB, width*3, yuv_format, 
+				out, "sse2_unaligned", iteration_number, yuv420_rgb24_sseu);
 #if USE_FFMPEG
-		test_yuv2rgb(width, height, Y, U, V, width, (width+1)/2, RGB, width*3, yuv_format, 
-			out, "ffmpeg_unaligned", iteration_number, yuv420_rgb24_ffmpeg);
+			test_yuv2rgb(width, height, Y, U, V, width, (width+1)/2, RGB, width*3, yuv_format, 
+				out, "ffmpeg_unaligned", iteration_number, yuv420_rgb24_ffmpeg);
 #endif
 #if USE_IPP
-		test_yuv2rgb(width, height, Y, U, V, width, (width+1)/2, RGB, width*3, yuv_format, 
-			out, "ipp_unaligned", iteration_number, yuv420_rgb24_ipp);
+			test_yuv2rgb(width, height, Y, U, V, width, (width+1)/2, RGB, width*3, yuv_format, 
+				out, "ipp_unaligned", iteration_number, yuv420_rgb24_ipp);
 #endif
-		test_yuv2rgb(width, height, Ya, Ua, Va, y_stride, uv_stride, RGBa, rgb_stride, yuv_format, 
-			out, "sse2_aligned", iteration_number, yuv420_rgb24_sse);
+			test_yuv2rgb(width, height, Ya, Ua, Va, y_stride, uv_stride, RGBa, rgb_stride, yuv_format, 
+				out, "sse2_aligned", iteration_number, yuv420_rgb24_sse);
 #if USE_FFMPEG
-		test_yuv2rgb(width, height, Ya, Ua, Va, y_stride, uv_stride, RGBa, rgb_stride, yuv_format, 
-			out, "ffmpeg_aligned", iteration_number, yuv420_rgb24_ffmpeg);
+			test_yuv2rgb(width, height, Ya, Ua, Va, y_stride, uv_stride, RGBa, rgb_stride, yuv_format, 
+				out, "ffmpeg_aligned", iteration_number, yuv420_rgb24_ffmpeg);
 #endif
 #if USE_IPP
-		test_yuv2rgb(width, height, Ya, Ua, Va, y_stride, uv_stride, RGBa, rgb_stride, yuv_format, 
-			out, "ipp_aligned", iteration_number, yuv420_rgb24_ipp);
+			test_yuv2rgb(width, height, Ya, Ua, Va, y_stride, uv_stride, RGBa, rgb_stride, yuv_format, 
+				out, "ipp_aligned", iteration_number, yuv420_rgb24_ipp);
 #endif
+		}
+		else if(mode==YUV2RGB_NV12)
+		{
+			test_yuvsp2rgb(width, height, Y, U, width, width, RGB, width*3, yuv_format, 
+				out, "std", iteration_number, nv12_rgb24_std);
+			test_yuvsp2rgb(width, height, Y, U, width, width, RGB, width*3, yuv_format, 
+				out, "sse2_unaligned", iteration_number, nv12_rgb24_sseu);
+			test_yuvsp2rgb(width, height, Ya, Ua, y_stride, uv_stride, RGBa, rgb_stride, yuv_format, 
+				out, "sse2_aligned", iteration_number, nv12_rgb24_sse);
+		}
+		else if(mode==YUV2RGB_NV21)
+		{
+			test_yuvsp2rgb(width, height, Y, U, width, width, RGB, width*3, yuv_format, 
+				out, "std", iteration_number, nv21_rgb24_std);
+			test_yuvsp2rgb(width, height, Y, U, width, width, RGB, width*3, yuv_format, 
+				out, "sse2_unaligned", iteration_number, nv21_rgb24_sseu);
+			test_yuvsp2rgb(width, height, Ya, Ua, y_stride, uv_stride, RGBa, rgb_stride, yuv_format, 
+				out, "sse2_aligned", iteration_number, nv21_rgb24_sse);
+		}
 	}
 	else if(mode==RGB2YUV)
 	{

@@ -252,6 +252,126 @@ void yuv420_rgb24_std(
 	}
 }
 
+void nv12_rgb24_std(
+	uint32_t width, uint32_t height, 
+	const uint8_t *Y, const uint8_t *UV, uint32_t Y_stride, uint32_t UV_stride, 
+	uint8_t *RGB, uint32_t RGB_stride, 
+	YCbCrType yuv_type)
+{
+	const YUV2RGBParam *const param = &(YUV2RGB[yuv_type]);
+	uint32_t x, y;
+	for(y=0; y<(height-1); y+=2)
+	{
+		const uint8_t *y_ptr1=Y+y*Y_stride,
+			*y_ptr2=Y+(y+1)*Y_stride,
+			*uv_ptr=UV+(y/2)*UV_stride;
+		
+		uint8_t *rgb_ptr1=RGB+y*RGB_stride,
+			*rgb_ptr2=RGB+(y+1)*RGB_stride;
+		
+		for(x=0; x<(width-1); x+=2)
+		{
+			int8_t u_tmp, v_tmp;
+			u_tmp = uv_ptr[0]-128;
+			v_tmp = uv_ptr[1]-128;
+			
+			//compute Cb Cr color offsets, common to four pixels
+			int16_t b_cb_offset, r_cr_offset, g_cbcr_offset;
+			b_cb_offset = (param->cb_factor*u_tmp)>>6;
+			r_cr_offset = (param->cr_factor*v_tmp)>>6;
+			g_cbcr_offset = (param->g_cb_factor*u_tmp + param->g_cr_factor*v_tmp)>>7;
+			
+			int16_t y_tmp;
+			y_tmp = (param->y_factor*(y_ptr1[0]-param->y_offset))>>7;
+			rgb_ptr1[0] = clamp(y_tmp + r_cr_offset);
+			rgb_ptr1[1] = clamp(y_tmp - g_cbcr_offset);
+			rgb_ptr1[2] = clamp(y_tmp + b_cb_offset);
+			
+			y_tmp = (param->y_factor*(y_ptr1[1]-param->y_offset))>>7;
+			rgb_ptr1[3] = clamp(y_tmp + r_cr_offset);
+			rgb_ptr1[4] = clamp(y_tmp - g_cbcr_offset);
+			rgb_ptr1[5] = clamp(y_tmp + b_cb_offset);
+			
+			y_tmp = (param->y_factor*(y_ptr2[0]-param->y_offset))>>7;
+			rgb_ptr2[0] = clamp(y_tmp + r_cr_offset);
+			rgb_ptr2[1] = clamp(y_tmp - g_cbcr_offset);
+			rgb_ptr2[2] = clamp(y_tmp + b_cb_offset);
+			
+			y_tmp = (param->y_factor*(y_ptr2[1]-param->y_offset))>>7;
+			rgb_ptr2[3] = clamp(y_tmp + r_cr_offset);
+			rgb_ptr2[4] = clamp(y_tmp - g_cbcr_offset);
+			rgb_ptr2[5] = clamp(y_tmp + b_cb_offset);
+			
+			rgb_ptr1 += 6;
+			rgb_ptr2 += 6;
+			y_ptr1 += 2;
+			y_ptr2 += 2;
+			uv_ptr += 2;
+		}
+	}
+}
+
+void nv21_rgb24_std(
+	uint32_t width, uint32_t height, 
+	const uint8_t *Y, const uint8_t *UV, uint32_t Y_stride, uint32_t UV_stride, 
+	uint8_t *RGB, uint32_t RGB_stride, 
+	YCbCrType yuv_type)
+{
+	const YUV2RGBParam *const param = &(YUV2RGB[yuv_type]);
+	uint32_t x, y;
+	for(y=0; y<(height-1); y+=2)
+	{
+		const uint8_t *y_ptr1=Y+y*Y_stride,
+			*y_ptr2=Y+(y+1)*Y_stride,
+			*uv_ptr=UV+(y/2)*UV_stride;
+		
+		uint8_t *rgb_ptr1=RGB+y*RGB_stride,
+			*rgb_ptr2=RGB+(y+1)*RGB_stride;
+		
+		for(x=0; x<(width-1); x+=2)
+		{
+			int8_t u_tmp, v_tmp;
+			u_tmp = uv_ptr[1]-128;
+			v_tmp = uv_ptr[0]-128;
+			
+			//compute Cb Cr color offsets, common to four pixels
+			int16_t b_cb_offset, r_cr_offset, g_cbcr_offset;
+			b_cb_offset = (param->cb_factor*u_tmp)>>6;
+			r_cr_offset = (param->cr_factor*v_tmp)>>6;
+			g_cbcr_offset = (param->g_cb_factor*u_tmp + param->g_cr_factor*v_tmp)>>7;
+			
+			int16_t y_tmp;
+			y_tmp = (param->y_factor*(y_ptr1[0]-param->y_offset))>>7;
+			rgb_ptr1[0] = clamp(y_tmp + r_cr_offset);
+			rgb_ptr1[1] = clamp(y_tmp - g_cbcr_offset);
+			rgb_ptr1[2] = clamp(y_tmp + b_cb_offset);
+			
+			y_tmp = (param->y_factor*(y_ptr1[1]-param->y_offset))>>7;
+			rgb_ptr1[3] = clamp(y_tmp + r_cr_offset);
+			rgb_ptr1[4] = clamp(y_tmp - g_cbcr_offset);
+			rgb_ptr1[5] = clamp(y_tmp + b_cb_offset);
+			
+			y_tmp = (param->y_factor*(y_ptr2[0]-param->y_offset))>>7;
+			rgb_ptr2[0] = clamp(y_tmp + r_cr_offset);
+			rgb_ptr2[1] = clamp(y_tmp - g_cbcr_offset);
+			rgb_ptr2[2] = clamp(y_tmp + b_cb_offset);
+			
+			y_tmp = (param->y_factor*(y_ptr2[1]-param->y_offset))>>7;
+			rgb_ptr2[3] = clamp(y_tmp + r_cr_offset);
+			rgb_ptr2[4] = clamp(y_tmp - g_cbcr_offset);
+			rgb_ptr2[5] = clamp(y_tmp + b_cb_offset);
+			
+			rgb_ptr1 += 6;
+			rgb_ptr2 += 6;
+			y_ptr1 += 2;
+			y_ptr2 += 2;
+			uv_ptr += 2;
+		}
+	}
+}
+
+
+
 #ifdef __SSE2__
 
 //see rgb.txt
@@ -539,6 +659,25 @@ PACK_RGB24_32_STEP(R1, R2, G1, G2, B1, B2, RGB1, RGB2, RGB3, RGB4, RGB5, RGB6) \
 PACK_RGB24_32_STEP(RGB1, RGB2, RGB3, RGB4, RGB5, RGB6, R1, R2, G1, G2, B1, B2) \
 PACK_RGB24_32_STEP(R1, R2, G1, G2, B1, B2, RGB1, RGB2, RGB3, RGB4, RGB5, RGB6) \
 
+#define LOAD_UV_PLANAR \
+	__m128i u = LOAD_SI128((const __m128i*)(u_ptr)); \
+	__m128i v = LOAD_SI128((const __m128i*)(v_ptr)); \
+
+#define LOAD_UV_NV12 \
+	__m128i uv1 = LOAD_SI128((const __m128i*)(uv_ptr)); \
+	__m128i uv2 = LOAD_SI128((const __m128i*)(uv_ptr+16)); \
+	__m128i u = _mm_packus_epi16(_mm_and_si128(uv1, _mm_set1_epi16(255)), _mm_and_si128(uv2, _mm_set1_epi16(255))); \
+	uv1 = _mm_srli_epi16(uv1, 8); \
+	uv2 = _mm_srli_epi16(uv2, 8); \
+	__m128i v = _mm_packus_epi16(_mm_and_si128(uv1, _mm_set1_epi16(255)), _mm_and_si128(uv2, _mm_set1_epi16(255))); \
+
+#define LOAD_UV_NV21 \
+	__m128i uv1 = LOAD_SI128((const __m128i*)(uv_ptr)); \
+	__m128i uv2 = LOAD_SI128((const __m128i*)(uv_ptr+16)); \
+	__m128i v = _mm_packus_epi16(_mm_and_si128(uv1, _mm_set1_epi16(255)), _mm_and_si128(uv2, _mm_set1_epi16(255))); \
+	uv1 = _mm_srli_epi16(uv1, 8); \
+	uv2 = _mm_srli_epi16(uv2, 8); \
+	__m128i u = _mm_packus_epi16(_mm_and_si128(uv1, _mm_set1_epi16(255)), _mm_and_si128(uv2, _mm_set1_epi16(255))); \
 
 #define YUV2RGB_32 \
 	__m128i r_tmp, g_tmp, b_tmp; \
@@ -546,8 +685,6 @@ PACK_RGB24_32_STEP(R1, R2, G1, G2, B1, B2, RGB1, RGB2, RGB3, RGB4, RGB5, RGB6) \
 	__m128i r_uv_16_1, g_uv_16_1, b_uv_16_1, r_uv_16_2, g_uv_16_2, b_uv_16_2; \
 	__m128i y_16_1, y_16_2; \
 	\
-	__m128i u = LOAD_SI128((const __m128i*)(u_ptr)); \
-	__m128i v = LOAD_SI128((const __m128i*)(v_ptr)); \
 	u = _mm_add_epi8(u, _mm_set1_epi8(-128)); \
 	v = _mm_add_epi8(v, _mm_set1_epi8(-128)); \
 	\
@@ -637,6 +774,18 @@ PACK_RGB24_32_STEP(R1, R2, G1, G2, B1, B2, RGB1, RGB2, RGB3, RGB4, RGB5, RGB6) \
 	SAVE_SI128((__m128i*)(rgb_ptr2+64), rgb_5); \
 	SAVE_SI128((__m128i*)(rgb_ptr2+80), rgb_6); \
 
+#define YUV2RGB_32_PLANAR \
+	LOAD_UV_PLANAR \
+	YUV2RGB_32
+
+#define YUV2RGB_32_NV12 \
+	LOAD_UV_NV12 \
+	YUV2RGB_32
+	
+#define YUV2RGB_32_NV21 \
+	LOAD_UV_NV21 \
+	YUV2RGB_32
+
 
 void yuv420_rgb24_sse(
 	uint32_t width, uint32_t height, 
@@ -661,7 +810,7 @@ void yuv420_rgb24_sse(
 		
 		for(x=0; x<(width-31); x+=32)
 		{
-			YUV2RGB_32
+			YUV2RGB_32_PLANAR
 			
 			y_ptr1+=32;
 			y_ptr2+=32;
@@ -698,7 +847,7 @@ void yuv420_rgb24_sseu(
 		
 		for(x=0; x<(width-31); x+=32)
 		{
-			YUV2RGB_32
+			YUV2RGB_32_PLANAR
 			
 			y_ptr1+=32;
 			y_ptr2+=32;
@@ -711,6 +860,147 @@ void yuv420_rgb24_sseu(
 	#undef LOAD_SI128
 	#undef SAVE_SI128
 }
+
+void nv12_rgb24_sse(
+	uint32_t width, uint32_t height, 
+	const uint8_t *Y, const uint8_t *UV, uint32_t Y_stride, uint32_t UV_stride, 
+	uint8_t *RGB, uint32_t RGB_stride, 
+	YCbCrType yuv_type)
+{
+	#define LOAD_SI128 _mm_load_si128
+	#define SAVE_SI128 _mm_stream_si128
+	const YUV2RGBParam *const param = &(YUV2RGB[yuv_type]);
+	
+	uint32_t x, y;
+	for(y=0; y<(height-1); y+=2)
+	{
+		const uint8_t *y_ptr1=Y+y*Y_stride,
+			*y_ptr2=Y+(y+1)*Y_stride,
+			*uv_ptr=UV+(y/2)*UV_stride;
+		
+		uint8_t *rgb_ptr1=RGB+y*RGB_stride,
+			*rgb_ptr2=RGB+(y+1)*RGB_stride;
+		
+		for(x=0; x<(width-31); x+=32)
+		{
+			YUV2RGB_32_NV12
+			
+			y_ptr1+=32;
+			y_ptr2+=32;
+			uv_ptr+=32; 
+			rgb_ptr1+=96;
+			rgb_ptr2+=96;
+		}
+	}
+	#undef LOAD_SI128
+	#undef SAVE_SI128
+}
+
+void nv12_rgb24_sseu(
+	uint32_t width, uint32_t height, 
+	const uint8_t *Y, const uint8_t *UV, uint32_t Y_stride, uint32_t UV_stride, 
+	uint8_t *RGB, uint32_t RGB_stride, 
+	YCbCrType yuv_type)
+{
+	#define LOAD_SI128 _mm_loadu_si128
+	#define SAVE_SI128 _mm_storeu_si128
+	const YUV2RGBParam *const param = &(YUV2RGB[yuv_type]);
+	
+	uint32_t x, y;
+	for(y=0; y<(height-1); y+=2)
+	{
+		const uint8_t *y_ptr1=Y+y*Y_stride,
+			*y_ptr2=Y+(y+1)*Y_stride,
+			*uv_ptr=UV+(y/2)*UV_stride;
+		
+		uint8_t *rgb_ptr1=RGB+y*RGB_stride,
+			*rgb_ptr2=RGB+(y+1)*RGB_stride;
+		
+		for(x=0; x<(width-31); x+=32)
+		{
+			YUV2RGB_32_NV12
+			
+			y_ptr1+=32;
+			y_ptr2+=32;
+			uv_ptr+=32; 
+			rgb_ptr1+=96;
+			rgb_ptr2+=96;
+		}
+	}
+	#undef LOAD_SI128
+	#undef SAVE_SI128
+}
+
+void nv21_rgb24_sse(
+	uint32_t width, uint32_t height, 
+	const uint8_t *Y, const uint8_t *UV, uint32_t Y_stride, uint32_t UV_stride, 
+	uint8_t *RGB, uint32_t RGB_stride, 
+	YCbCrType yuv_type)
+{
+	#define LOAD_SI128 _mm_load_si128
+	#define SAVE_SI128 _mm_stream_si128
+	const YUV2RGBParam *const param = &(YUV2RGB[yuv_type]);
+	
+	uint32_t x, y;
+	for(y=0; y<(height-1); y+=2)
+	{
+		const uint8_t *y_ptr1=Y+y*Y_stride,
+			*y_ptr2=Y+(y+1)*Y_stride,
+			*uv_ptr=UV+(y/2)*UV_stride;
+		
+		uint8_t *rgb_ptr1=RGB+y*RGB_stride,
+			*rgb_ptr2=RGB+(y+1)*RGB_stride;
+		
+		for(x=0; x<(width-31); x+=32)
+		{
+			YUV2RGB_32_NV21
+			
+			y_ptr1+=32;
+			y_ptr2+=32;
+			uv_ptr+=32; 
+			rgb_ptr1+=96;
+			rgb_ptr2+=96;
+		}
+	}
+	#undef LOAD_SI128
+	#undef SAVE_SI128
+}
+
+void nv21_rgb24_sseu(
+	uint32_t width, uint32_t height, 
+	const uint8_t *Y, const uint8_t *UV, uint32_t Y_stride, uint32_t UV_stride, 
+	uint8_t *RGB, uint32_t RGB_stride, 
+	YCbCrType yuv_type)
+{
+	#define LOAD_SI128 _mm_loadu_si128
+	#define SAVE_SI128 _mm_storeu_si128
+	const YUV2RGBParam *const param = &(YUV2RGB[yuv_type]);
+	
+	uint32_t x, y;
+	for(y=0; y<(height-1); y+=2)
+	{
+		const uint8_t *y_ptr1=Y+y*Y_stride,
+			*y_ptr2=Y+(y+1)*Y_stride,
+			*uv_ptr=UV+(y/2)*UV_stride;
+		
+		uint8_t *rgb_ptr1=RGB+y*RGB_stride,
+			*rgb_ptr2=RGB+(y+1)*RGB_stride;
+		
+		for(x=0; x<(width-31); x+=32)
+		{
+			YUV2RGB_32_NV21
+			
+			y_ptr1+=32;
+			y_ptr2+=32;
+			uv_ptr+=32; 
+			rgb_ptr1+=96;
+			rgb_ptr2+=96;
+		}
+	}
+	#undef LOAD_SI128
+	#undef SAVE_SI128
+}
+
 
 
 #endif //__SSE2__
