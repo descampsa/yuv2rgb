@@ -182,12 +182,28 @@ int savePPM(const char* filename, uint32_t width, uint32_t height, const uint8_t
 	return 0;
 }
 
+void convert_rgb_to_rgba(const uint8_t *RGB, uint32_t width, uint32_t height, uint8_t **RGBA)
+{
+	*RGBA = malloc(4*width*height);
+	for(uint32_t y=0; y<height; ++y)
+	{
+		for(uint32_t x=0; x<width; ++x)
+		{
+			(*RGBA)[(y*width+x)*4] = RGB[(y*width+x)*3];
+			(*RGBA)[(y*width+x)*4+1] = RGB[(y*width+x)*3+1];
+			(*RGBA)[(y*width+x)*4+2] = RGB[(y*width+x)*3+2];
+			(*RGBA)[(y*width+x)*4+3] = 0;
+		}
+	}
+}
+
 typedef enum
 {
 	RGB2YUV,
 	YUV2RGB,
 	YUV2RGB_NV12,
-	YUV2RGB_NV21
+	YUV2RGB_NV21,
+	RGBA2YUV
 } Mode;
 
 typedef void (*yuv2rgb_ptr)(
@@ -339,6 +355,7 @@ int main(int argc, char **argv)
 		printf("Or    : test yuv2rgb_nv12 <yuv image file> <image width> <image height> <output template filename>\n");
 		printf("Or    : test yuv2rgb_nv21 <yuv image file> <image width> <image height> <output template filename>\n");
 		printf("Or    : test rgb2yuv <rgb24 binary ppm image file> <output template filename>\n");
+		printf("Or    : test rgba2yuv <rgb24 binary ppm image file> <output template filename>\n");
 		return 1;
 	}
 	
@@ -369,6 +386,10 @@ int main(int argc, char **argv)
 	else if(strcmp(argv[1], "rgb2yuv")==0)
 	{
 		mode=RGB2YUV;
+	}
+	else if(strcmp(argv[1], "rgba2yuv")==0)
+	{
+		mode=RGBA2YUV;
 	}
 	else
 	{
@@ -542,6 +563,54 @@ int main(int argc, char **argv)
 		test_rgb2yuv(width, height, RGBa, rgb_stride, Ya, Ua, Va, y_stride, uv_stride, yuv_format, 
 			out, "ipp_aligned", iteration_number, rgb24_yuv420_ipp);
 #endif
+	}
+	else if(mode==RGBA2YUV)
+	{
+		//parse argument line
+		out = argv[3];
+		
+		// read input data and allocate output data
+		if(readPPM(filename, &width, &height, &RGB)!=0)
+		{
+			printf("Error reading image file, check that the file exists and has the correct format.\n");
+			return 1;
+		}
+		// convert rgb to rgba
+		uint8_t *RGBA = NULL;
+		convert_rgb_to_rgba(RGB, width, height, &RGBA);
+		
+		YUV = malloc(width*height*3/2);
+		
+		Y = YUV;
+		U = YUV+width*height;
+		V = YUV+width*height+((width+1)/2)*((height+1)/2);
+		
+		// allocate aligned data
+		const size_t y_stride = width + (16-width%16)%16,
+		uv_stride = (width+1)/2 + (16-((width+1)/2)%16)%16,
+		rgba_stride = width*4 +(16-(4*width)%16)%16;
+		
+		RGBa = _mm_malloc(rgba_stride*height, 16);
+		for(unsigned int i=0; i<height; ++i)
+		{
+			memcpy(RGBa+i*rgba_stride, RGBA+i*width*4, width*4);
+		}
+		
+		const size_t y_size = y_stride*height, uv_size = uv_stride*((height+1)/2);
+		YUVa = _mm_malloc(y_size+2*uv_size, 16);
+		Ya = YUVa;
+		Ua = YUVa+y_size;
+		Va = YUVa+y_size+uv_size;
+		
+		// test all versions
+		test_rgb2yuv(width, height, RGBA, width*4, Y, U, V, width, (width+1)/2, yuv_format, 
+			out, "std", iteration_number, rgb32_yuv420_std);
+		test_rgb2yuv(width, height, RGBA, width*4, Y, U, V, width, (width+1)/2, yuv_format, 
+			out, "sse2_unaligned", iteration_number, rgb32_yuv420_sseu);
+		test_rgb2yuv(width, height, RGBa, rgba_stride, Ya, Ua, Va, y_stride, uv_stride, yuv_format, 
+			out, "sse2_aligned", iteration_number, rgb32_yuv420_sse);
+		
+		free(RGBA);
 	}
 	
 	_mm_free(RGBa);
