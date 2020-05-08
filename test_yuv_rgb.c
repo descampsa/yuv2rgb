@@ -11,7 +11,11 @@
 #include <string.h>
 #include <time.h>
 
+#ifdef _MSC_VER
+#include <emmintrin.h>
+#else
 #include <x86intrin.h>
+#endif
 
 #if USE_FFMPEG
 #include <libswscale/swscale.h>

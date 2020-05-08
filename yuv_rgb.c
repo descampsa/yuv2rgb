@@ -3,9 +3,25 @@
 
 #include "yuv_rgb.h"
 
+#ifdef _MSC_VER
+#include <emmintrin.h>
+#else
 #include <x86intrin.h>
+#endif
 
 #include <stdio.h>
+
+#ifdef _MSC_VER
+// MSVC does not have __SSE2__ macro
+#if (defined(_M_AMD64) || defined(_M_X64) || (_M_IX86_FP == 2))
+#define _YUVRGB_SSE2_ 
+#endif
+#else
+// For else than MSVC
+#ifdef __SSE2__
+#define _YUVRGB_SSE2_ 
+#endif // __SSE2__
+#endif // _MSC_VER
 
 
 uint8_t clamp(int16_t value)
@@ -429,7 +445,7 @@ void nv21_rgb24_std(
 }
 
 
-#ifdef __SSE2__
+#ifdef _YUVRGB_SSE2_
 
 //see rgb.txt
 #define UNPACK_RGB24_32_STEP(RS1, RS2, RS3, RS4, RS5, RS6, RD1, RD2, RD3, RD4, RD5, RD6) \
@@ -915,7 +931,7 @@ void rgb32_yuv420_sseu(uint32_t width, uint32_t height,
 
 #endif
 
-#ifdef __SSE2__
+#ifdef _YUVRGB_SSE2_
 
 #define UV2RGB_16(U,V,R1,G1,B1,R2,G2,B2) \
 	r_tmp = _mm_srai_epi16(_mm_mullo_epi16(V, _mm_set1_epi16(param->cr_factor)), 6); \
@@ -1300,4 +1316,4 @@ void nv21_rgb24_sseu(
 
 
 
-#endif //__SSE2__
+#endif // _YUVRGB_SSE2_
