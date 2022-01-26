@@ -35,7 +35,7 @@ The second and third parameters are image width and height (that are needed beca
 
 Similarly, for RGB24 to YUV420 conversion:
 
-    ./test_yuv_rgb yuv2rgb image.ppm image
+    ./test_yuv_rgb rgb2yuv image.ppm image
 
 On my computer, the test program on a 4K image give the following for yuv2rgb:
 
