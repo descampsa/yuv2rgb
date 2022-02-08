@@ -178,7 +178,7 @@ void rgb24_yuv420_std(
 			y_ptr2[1]=((y_tmp*param->y_factor)>>7) + param->y_offset;
 
 			u_ptr[0] = (((u_tmp>>2)*param->cb_factor)>>8) + 128;
-			v_ptr[0] = (((v_tmp>>2)*param->cb_factor)>>8) + 128;
+			v_ptr[0] = (((v_tmp>>2)*param->cr_factor)>>8) + 128;
 			
 			rgb_ptr1 += 6;
 			rgb_ptr2 += 6;
