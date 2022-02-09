@@ -931,8 +931,8 @@ void rgb32_yuv420_sseu(uint32_t width, uint32_t height,
 	B2 = _mm_unpackhi_epi16(b_tmp, b_tmp); \
 
 #define ADD_Y2RGB_16(Y1,Y2,R1,G1,B1,R2,G2,B2) \
-	Y1 = _mm_srai_epi16(_mm_mullo_epi16(Y1, _mm_set1_epi16(param->y_factor)), 7); \
-	Y2 = _mm_srai_epi16(_mm_mullo_epi16(Y2, _mm_set1_epi16(param->y_factor)), 7); \
+	Y1 = _mm_srli_epi16(_mm_mullo_epi16(Y1, _mm_set1_epi16(param->y_factor)), 7); \
+	Y2 = _mm_srli_epi16(_mm_mullo_epi16(Y2, _mm_set1_epi16(param->y_factor)), 7); \
 	\
 	R1 = _mm_add_epi16(Y1, R1); \
 	G1 = _mm_sub_epi16(Y1, G1); \
@@ -994,7 +994,7 @@ PACK_RGB24_32_STEP(R1, R2, G1, G2, B1, B2, RGB1, RGB2, RGB3, RGB4, RGB5, RGB6) \
 	r_16_2=r_uv_16_2; g_16_2=g_uv_16_2; b_16_2=b_uv_16_2; \
 	\
 	__m128i y = LOAD_SI128((const __m128i*)(y_ptr1)); \
-	y = _mm_sub_epi8(y, _mm_set1_epi8(param->y_offset)); \
+	y = _mm_subs_epu8(y, _mm_set1_epi8(param->y_offset)); \
 	y_16_1 = _mm_unpacklo_epi8(y, _mm_setzero_si128()); \
 	y_16_2 = _mm_unpackhi_epi8(y, _mm_setzero_si128()); \
 	\
@@ -1009,7 +1009,7 @@ PACK_RGB24_32_STEP(R1, R2, G1, G2, B1, B2, RGB1, RGB2, RGB3, RGB4, RGB5, RGB6) \
 	r_16_2=r_uv_16_2; g_16_2=g_uv_16_2; b_16_2=b_uv_16_2; \
 	\
 	y = LOAD_SI128((const __m128i*)(y_ptr2)); \
-	y = _mm_sub_epi8(y, _mm_set1_epi8(param->y_offset)); \
+	y = _mm_subs_epu8(y, _mm_set1_epi8(param->y_offset)); \
 	y_16_1 = _mm_unpacklo_epi8(y, _mm_setzero_si128()); \
 	y_16_2 = _mm_unpackhi_epi8(y, _mm_setzero_si128()); \
 	\
@@ -1028,7 +1028,7 @@ PACK_RGB24_32_STEP(R1, R2, G1, G2, B1, B2, RGB1, RGB2, RGB3, RGB4, RGB5, RGB6) \
 	r_16_2=r_uv_16_2; g_16_2=g_uv_16_2; b_16_2=b_uv_16_2; \
 	\
 	y = LOAD_SI128((const __m128i*)(y_ptr1+16)); \
-	y = _mm_sub_epi8(y, _mm_set1_epi8(param->y_offset)); \
+	y = _mm_subs_epu8(y, _mm_set1_epi8(param->y_offset)); \
 	y_16_1 = _mm_unpacklo_epi8(y, _mm_setzero_si128()); \
 	y_16_2 = _mm_unpackhi_epi8(y, _mm_setzero_si128()); \
 	\
@@ -1043,7 +1043,7 @@ PACK_RGB24_32_STEP(R1, R2, G1, G2, B1, B2, RGB1, RGB2, RGB3, RGB4, RGB5, RGB6) \
 	r_16_2=r_uv_16_2; g_16_2=g_uv_16_2; b_16_2=b_uv_16_2; \
 	\
 	y = LOAD_SI128((const __m128i*)(y_ptr2+16)); \
-	y = _mm_sub_epi8(y, _mm_set1_epi8(param->y_offset)); \
+	y = _mm_subs_epu8(y, _mm_set1_epi8(param->y_offset)); \
 	y_16_1 = _mm_unpacklo_epi8(y, _mm_setzero_si128()); \
 	y_16_2 = _mm_unpackhi_epi8(y, _mm_setzero_si128()); \
 	\
